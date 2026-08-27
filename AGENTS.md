@@ -30,7 +30,7 @@ This document is the authoritative operating specification for every AI coding a
 
 ## 1. Project Overview
 
-**Product name:** (to be confirmed by team; placeholder: *Paisay Ki Baat*)
+**Product name:** Raqam-AI
 
 **Hackathon:** Bano Qabil AI Hackathon
 
@@ -63,6 +63,7 @@ Every AI claim about a user's financial situation must be derived from retrieved
 ### P3 — Separating intent types is mandatory
 
 The system enforces a hard boundary between:
+
 - **Information extraction** — parsing user utterances into structured data
 - **Financial reasoning** — analysis, projections, literacy explanations
 - **Recommendations** — suggestions grounded in retrieved data
@@ -88,23 +89,23 @@ The AI may educate, analyze, recommend, and perform a bounded set of explicitly 
 
 ### Mandatory
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Frontend framework | Next.js (App Router) | Use the App Router. Do not use Pages Router. |
-| Language | TypeScript | Strict mode. No `any` unless unavoidable with documented justification. |
-| Styling | Tailwind CSS | Utility-first. No raw CSS files unless Tailwind cannot achieve the requirement. |
-| Component library | shadcn/ui | Install and configure before building custom components. |
-| Backend / DB / Realtime | Convex | All data persistence, queries, mutations, and actions through Convex. |
+| Layer                   | Technology           | Notes                                                                           |
+| ----------------------- | -------------------- | ------------------------------------------------------------------------------- |
+| Frontend framework      | Next.js (App Router) | Use the App Router. Do not use Pages Router.                                    |
+| Language                | TypeScript           | Strict mode. No `any` unless unavoidable with documented justification.         |
+| Styling                 | Tailwind CSS         | Utility-first. No raw CSS files unless Tailwind cannot achieve the requirement. |
+| Component library       | shadcn/ui            | Install and configure before building custom components.                        |
+| Backend / DB / Realtime | Convex               | All data persistence, queries, mutations, and actions through Convex.           |
 
 ### Strongly preferred
 
-| Concern | Choice |
-|---|---|
-| Authentication | Convex Auth or Clerk (integrate with Convex identity) |
+| Concern           | Choice                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| Authentication    | Convex Auth or Clerk (integrate with Convex identity)                                        |
 | AI model provider | Google Gemini (gemini-2.0-flash or gemini-1.5-pro) or OpenAI GPT-4o — confirm before Phase 8 |
-| Speech-to-text | Web Speech API (free, browser-native) with a Whisper-based fallback API for Urdu accuracy |
-| Image/OCR | Google Cloud Vision API or Gemini vision endpoint |
-| i18n | `next-intl` or a lightweight custom locale layer |
+| Speech-to-text    | Web Speech API (free, browser-native) with a Whisper-based fallback API for Urdu accuracy    |
+| Image/OCR         | Google Cloud Vision API or Gemini vision endpoint                                            |
+| i18n              | `next-intl` or a lightweight custom locale layer                                             |
 
 ### Prohibited
 
@@ -310,30 +311,25 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-
   // ─── Users ───────────────────────────────────────────────────────────────
   users: defineTable({
-    clerkId: v.string(),             // Auth provider user ID
+    clerkId: v.string(), // Auth provider user ID
     email: v.string(),
     name: v.optional(v.string()),
     preferredLanguage: v.union(v.literal("ur"), v.literal("en")),
-    currency: v.string(),            // Default: "PKR"
-    createdAt: v.number(),           // Unix ms
+    currency: v.string(), // Default: "PKR"
+    createdAt: v.number(), // Unix ms
   }).index("by_clerkId", ["clerkId"]),
 
   // ─── Categories ──────────────────────────────────────────────────────────
   categories: defineTable({
     userId: v.id("users"),
-    name: v.string(),                // English slug: "food_delivery"
-    nameUr: v.string(),              // Urdu label: "کھانا ڈلیوری"
-    icon: v.optional(v.string()),    // Emoji or icon name
-    color: v.optional(v.string()),   // Hex color for charts
-    type: v.union(
-      v.literal("income"),
-      v.literal("expense"),
-      v.literal("both")
-    ),
-    isSystem: v.boolean(),           // System categories cannot be deleted
+    name: v.string(), // English slug: "food_delivery"
+    nameUr: v.string(), // Urdu label: "کھانا ڈلیوری"
+    icon: v.optional(v.string()), // Emoji or icon name
+    color: v.optional(v.string()), // Hex color for charts
+    type: v.union(v.literal("income"), v.literal("expense"), v.literal("both")),
+    isSystem: v.boolean(), // System categories cannot be deleted
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -341,18 +337,18 @@ export default defineSchema({
   transactions: defineTable({
     userId: v.id("users"),
     type: v.union(v.literal("income"), v.literal("expense")),
-    amount: v.number(),              // Always positive PKR
+    amount: v.number(), // Always positive PKR
     categoryId: v.id("categories"),
     description: v.optional(v.string()),
     descriptionUr: v.optional(v.string()),
-    date: v.number(),                // Unix ms (midnight of transaction date)
+    date: v.number(), // Unix ms (midnight of transaction date)
     notes: v.optional(v.string()),
     source: v.union(
-      v.literal("manual"),          // Typed via UI form
-      v.literal("conversational"),  // Entered via AI assistant
-      v.literal("voice"),           // Entered via voice input
-      v.literal("receipt"),         // Extracted from receipt image
-      v.literal("import"),          // Imported from CSV/bank statement
+      v.literal("manual"), // Typed via UI form
+      v.literal("conversational"), // Entered via AI assistant
+      v.literal("voice"), // Entered via voice input
+      v.literal("receipt"), // Extracted from receipt image
+      v.literal("import"), // Imported from CSV/bank statement
     ),
     importId: v.optional(v.id("imports")),
     receiptStorageId: v.optional(v.string()),
@@ -369,7 +365,7 @@ export default defineSchema({
   // ─── Budgets ──────────────────────────────────────────────────────────────
   budgets: defineTable({
     userId: v.id("users"),
-    month: v.number(),               // Unix ms for first of month
+    month: v.number(), // Unix ms for first of month
     totalLimit: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -377,9 +373,9 @@ export default defineSchema({
 
   budgetCategories: defineTable({
     budgetId: v.id("budgets"),
-    userId: v.id("users"),           // Redundant for auth simplicity
+    userId: v.id("users"), // Redundant for auth simplicity
     categoryId: v.id("categories"),
-    limit: v.number(),               // PKR
+    limit: v.number(), // PKR
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -391,8 +387,8 @@ export default defineSchema({
     userId: v.id("users"),
     name: v.string(),
     nameUr: v.optional(v.string()),
-    targetAmount: v.number(),        // PKR
-    currentAmount: v.number(),       // Running total, updated on contribution
+    targetAmount: v.number(), // PKR
+    currentAmount: v.number(), // Running total, updated on contribution
     targetDate: v.optional(v.number()),
     isCompleted: v.boolean(),
     createdAt: v.number(),
@@ -409,7 +405,7 @@ export default defineSchema({
       v.literal("daily"),
       v.literal("weekly"),
       v.literal("monthly"),
-      v.literal("yearly")
+      v.literal("yearly"),
     ),
     nextDueDate: v.number(),
     isActive: v.boolean(),
@@ -429,14 +425,16 @@ export default defineSchema({
   // ─── Financial Snapshots ──────────────────────────────────────────────────
   financialSnapshots: defineTable({
     userId: v.id("users"),
-    month: v.number(),               // Unix ms for first of month
+    month: v.number(), // Unix ms for first of month
     totalIncome: v.number(),
     totalExpenses: v.number(),
     netSavings: v.number(),
-    categoryBreakdown: v.array(v.object({
-      categoryId: v.id("categories"),
-      total: v.number(),
-    })),
+    categoryBreakdown: v.array(
+      v.object({
+        categoryId: v.id("categories"),
+        total: v.number(),
+      }),
+    ),
     createdAt: v.number(),
   }).index("by_userId_month", ["userId", "month"]),
 
@@ -450,7 +448,7 @@ export default defineSchema({
       v.literal("parsing"),
       v.literal("preview"),
       v.literal("confirmed"),
-      v.literal("failed")
+      v.literal("failed"),
     ),
     rowCount: v.optional(v.number()),
     importedCount: v.optional(v.number()),
@@ -463,14 +461,16 @@ export default defineSchema({
   importedTransactions: defineTable({
     importId: v.id("imports"),
     userId: v.id("users"),
-    rawData: v.string(),             // JSON stringified raw row
-    normalizedData: v.optional(v.object({
-      type: v.union(v.literal("income"), v.literal("expense")),
-      amount: v.number(),
-      description: v.string(),
-      date: v.number(),
-      suggestedCategoryId: v.optional(v.id("categories")),
-    })),
+    rawData: v.string(), // JSON stringified raw row
+    normalizedData: v.optional(
+      v.object({
+        type: v.union(v.literal("income"), v.literal("expense")),
+        amount: v.number(),
+        description: v.string(),
+        date: v.number(),
+        suggestedCategoryId: v.optional(v.id("categories")),
+      }),
+    ),
     isDuplicate: v.boolean(),
     isConfirmed: v.boolean(),
     transactionId: v.optional(v.id("transactions")),
@@ -490,17 +490,17 @@ export default defineSchema({
     userId: v.id("users"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
-    inputMode: v.optional(v.union(
-      v.literal("text"),
-      v.literal("voice"),
-      v.literal("receipt")
-    )),
-    intentType: v.optional(v.union(
-      v.literal("educate"),
-      v.literal("analyze"),
-      v.literal("recommend"),
-      v.literal("act")
-    )),
+    inputMode: v.optional(
+      v.union(v.literal("text"), v.literal("voice"), v.literal("receipt")),
+    ),
+    intentType: v.optional(
+      v.union(
+        v.literal("educate"),
+        v.literal("analyze"),
+        v.literal("recommend"),
+        v.literal("act"),
+      ),
+    ),
     pendingActionId: v.optional(v.id("pendingActions")),
     createdAt: v.number(),
   })
@@ -512,14 +512,14 @@ export default defineSchema({
     userId: v.id("users"),
     conversationId: v.id("conversations"),
     messageId: v.optional(v.id("messages")),
-    toolName: v.string(),            // e.g., "createTransaction"
-    toolInput: v.string(),           // JSON stringified
+    toolName: v.string(), // e.g., "createTransaction"
+    toolInput: v.string(), // JSON stringified
     status: v.union(
       v.literal("pending"),
       v.literal("confirmed"),
       v.literal("rejected"),
       v.literal("executed"),
-      v.literal("failed")
+      v.literal("failed"),
     ),
     executedAt: v.optional(v.number()),
     createdAt: v.number(),
@@ -528,18 +528,13 @@ export default defineSchema({
   // ─── Audit Log ────────────────────────────────────────────────────────────
   auditLog: defineTable({
     userId: v.id("users"),
-    action: v.string(),              // e.g., "transaction.create"
+    action: v.string(), // e.g., "transaction.create"
     entityType: v.string(),
     entityId: v.optional(v.string()),
     metadata: v.optional(v.string()), // JSON stringified
-    source: v.union(
-      v.literal("user"),
-      v.literal("ai"),
-      v.literal("system")
-    ),
+    source: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
-
 });
 ```
 
@@ -579,7 +574,7 @@ interface FinancialContext {
     expenses: number;
     netSavings: number;
     budgetUtilization: Record<string, number>; // categoryId → pct
-    recentTransactions: Transaction[];          // Last 10
+    recentTransactions: Transaction[]; // Last 10
   };
   previousMonth: {
     income: number;
@@ -589,7 +584,7 @@ interface FinancialContext {
   activeBudgets: BudgetCategory[];
   savingsGoals: SavingsGoal[];
   recurringExpenses: RecurringExpense[];
-  categoryMap: Record<string, Category>;       // id → category
+  categoryMap: Record<string, Category>; // id → category
 }
 ```
 
@@ -598,6 +593,7 @@ This context is passed explicitly to the AI. The AI does not query Convex direct
 ### Tool definitions (`lib/ai/tools.ts`)
 
 AI tools are the only mechanism by which the AI can affect financial data. Every tool has:
+
 - A typed input schema (Zod)
 - A typed output schema (Zod)
 - Authorization check (userId must match)
@@ -687,7 +683,7 @@ const TransactionExtraction = z.object({
   type: z.enum(["income", "expense"]),
   description: z.string(),
   suggestedCategory: z.string(),
-  date: z.string().date(),          // ISO date string
+  date: z.string().date(), // ISO date string
   confidence: z.enum(["high", "medium", "low"]),
   clarificationNeeded: z.string().optional(),
 });
@@ -745,6 +741,7 @@ If the model output fails Zod validation, do not pass it to the confirmation gat
 ### 9.1 Transaction Management
 
 **What it must do:**
+
 - Add transactions manually via a form
 - Add transactions conversationally through the assistant
 - Edit any field of any transaction
@@ -761,6 +758,7 @@ If the model output fails Zod validation, do not pass it to the confirmation gat
 
 Input: "Aaj 850 rupay petrol pe kharch huay."
 Extracted:
+
 ```json
 {
   "amount": 850,
@@ -775,6 +773,7 @@ Extracted:
 The extracted transaction must be shown to the user before creation.
 
 **Prohibited:**
+
 - Creating a transaction without user seeing the extracted data
 - Accepting amounts that are not positive numbers
 - Creating duplicate transactions without warning
@@ -782,6 +781,7 @@ The extracted transaction must be shown to the user before creation.
 ### 9.2 Budgeting
 
 **What it must do:**
+
 - Create a monthly budget (one per month)
 - Define per-category spending limits
 - Display real-time budget utilization (spent vs limit per category)
@@ -792,6 +792,7 @@ The extracted transaction must be shown to the user before creation.
 - Allow editing of category limits at any time
 
 **AI budget recommendations** must explain reasoning:
+
 ```
 "Food delivery mein aap ne pichle 3 months mein average Rs. 7,200 kharch kiye hain.
 Ek Rs. 6,000 budget 17% saving dega. Kya aap yeh apply karna chahein ge?"
@@ -800,6 +801,7 @@ Ek Rs. 6,000 budget 17% saving dega. Kya aap yeh apply karna chahein ge?"
 ### 9.3 Financial Dashboard
 
 **Required widgets (all real data, no mock):**
+
 - Total balance (income - expenses, current month)
 - Monthly income
 - Monthly expenses
@@ -812,12 +814,14 @@ Ek Rs. 6,000 budget 17% saving dega. Kya aap yeh apply karna chahein ge?"
 - Upcoming recurring expenses (next 7 days)
 
 **Prohibited:**
+
 - Any chart that does not respond to real transaction data
 - Charts showing data from previous sessions when the user has no transactions
 
 ### 9.4 Urdu-First Experience
 
 **Required:**
+
 - All UI text available in Urdu (`lib/i18n/ur.ts`)
 - RTL layout applied when language is Urdu (`dir="rtl"`)
 - Urdu-capable font loaded: Noto Naskh Arabic or Jameel Noori Nastaleeq
@@ -828,18 +832,22 @@ Ek Rs. 6,000 budget 17% saving dega. Kya aap yeh apply karna chahein ge?"
 - AI assistant responds in Urdu by default
 
 **RTL implementation:**
+
 ```html
-<html lang="ur" dir="rtl">
+<html lang="ur" dir="rtl"></html>
 ```
+
 Applied conditionally via `<LanguageProvider>`. Tailwind RTL variants (`rtl:ml-4`, `rtl:text-right`) used throughout. Never use hardcoded `left`/`right` CSS values in RTL-sensitive layouts.
 
 **Prohibited:**
+
 - Hardcoded English strings in components (use `t("key")` or locale accessor)
 - Using `float: left` or `position: absolute; left: 0` in RTL layouts without RTL override
 
 ### 9.5 Conversational Assistant
 
 **Capabilities:**
+
 - Answer financial literacy questions in Urdu
 - Retrieve user financial data and explain it
 - Parse transaction intents from natural language
@@ -849,6 +857,7 @@ Applied conditionally via `<LanguageProvider>`. Tailwind RTL variants (`rtl:ml-4
 - Maintain conversation context within a session
 
 **Response format for analysis/recommendations:**
+
 ```
 [What happened?]
 [Why does it matter?]
@@ -857,6 +866,7 @@ Applied conditionally via `<LanguageProvider>`. Tailwind RTL variants (`rtl:ml-4
 ```
 
 **Prohibited:**
+
 - Responding with fabricated financial figures
 - Performing mutations without going through the confirmation gate
 - Pretending to have executed an action when the mutation has not succeeded
@@ -874,6 +884,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Understand the existing repository before making any change.
 
 **Scope:**
+
 - Read all existing files
 - Map current app structure
 - Identify all mock data sources
@@ -884,6 +895,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** None
 
 **Implementation requirements:**
+
 1. Create `AUDIT.md` at the root listing:
    - Current routes and their data sources
    - All mock/hardcoded data files and the components that consume them
@@ -897,6 +909,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Files affected:** Only `AUDIT.md` (new file)
 
 **Do not:**
+
 - Rewrite any existing component
 - Add new routes
 - Install packages
@@ -904,6 +917,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Tests:** None (audit only)
 
 **Success criteria:**
+
 - `AUDIT.md` exists and accurately describes the current state
 - Every mock data source is explicitly named with the file and line number
 - Agent can state clearly: "The current app is in state X and the following Y things need to change before Phase 1"
@@ -917,6 +931,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement all primary screens according to the provided design reference (Figma, Canva, or screenshot).
 
 **Scope:**
+
 - Dashboard layout
 - Transactions list
 - Add/edit transaction form
@@ -930,6 +945,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 0 complete
 
 **Implementation requirements:**
+
 1. Use shadcn/ui components as the base. Do not rebuild what shadcn already provides.
 2. Apply Tailwind for all styling.
 3. Use realistic placeholder data (hardcoded TypeScript objects) where Convex is not yet connected. Label all placeholder data files with a comment: `// MOCK_DATA — replace in Phase 2`.
@@ -938,6 +954,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. Load the Urdu font in `app/layout.tsx`.
 
 **Files likely affected:**
+
 - `app/(app)/**`
 - `app/(auth)/**`
 - `components/**`
@@ -946,15 +963,18 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `app/globals.css`
 
 **Do not:**
+
 - Connect any component to Convex
 - Implement real authentication
 - Add any AI calls
 
 **Tests:**
+
 - Visual test: all screens render without errors at 320px, 768px, 1280px
 - RTL test: applying `dir="rtl"` does not break any layout
 
 **Success criteria:**
+
 - All primary screens match the design reference at the three breakpoints
 - No TypeScript errors
 - RTL layout functions without broken alignment on all screens
@@ -969,6 +989,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Remove all hardcoded financial data and replace with proper application state architecture.
 
 **Scope:**
+
 - Audit all `// MOCK_DATA` sources
 - Replace mock arrays with empty states or Convex-ready hook interfaces
 - Ensure components handle: loading state, empty state, error state
@@ -976,6 +997,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 1 complete
 
 **Implementation requirements:**
+
 1. Replace every mock data array with a hook interface (`useTransactions`, `useBudgets`, etc.) that currently returns empty arrays.
 2. Implement proper loading skeletons for all data-dependent components.
 3. Implement empty states for: no transactions, no budgets, no goals, no conversations.
@@ -983,20 +1005,24 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 5. Do not connect to Convex yet — hooks return empty/null until Phase 4.
 
 **Files likely affected:**
+
 - All components that previously consumed mock data
 - `hooks/` (new files)
 - `components/shared/` (loading, empty, error components)
 
 **Do not:**
+
 - Connect to Convex
 - Remove the ability to run the app locally
 
 **Tests:**
+
 - Each screen renders correctly with empty data
 - Each screen renders correctly with a simulated loading state
 - No component throws when data is undefined or empty array
 
 **Success criteria:**
+
 - Zero `// MOCK_DATA` comments remain in the codebase
 - All data-dependent components have loading, empty, and error states
 - App runs without errors with empty hooks
@@ -1010,6 +1036,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement authentication. Guarantee that User A cannot access User B's data.
 
 **Scope:**
+
 - Auth provider setup (Clerk or Convex Auth)
 - Login and signup screens wired to real auth
 - Authenticated route protection
@@ -1019,6 +1046,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 2 complete
 
 **Implementation requirements:**
+
 1. Configure chosen auth provider.
 2. Protect all `/app/*` routes. Redirect unauthenticated users to `/login`.
 3. On first successful auth, create a `users` record in Convex with the provider's user ID.
@@ -1026,6 +1054,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 5. All Convex queries and mutations must call `getUserId` as their first line.
 
 **Files likely affected:**
+
 - `convex/auth.config.ts`
 - `convex/users.ts` (new)
 - `app/(auth)/login/`, `app/(auth)/signup/`
@@ -1033,15 +1062,18 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `lib/auth.ts` (new)
 
 **Do not:**
+
 - Implement financial features
 - Skip authorization on any Convex function
 
 **Tests:**
+
 - Unauthenticated user accessing `/dashboard` is redirected to `/login`
 - User A's Convex query for transactions returns only User A's records
 - User B cannot retrieve User A's records by guessing an ID
 
 **Success criteria:**
+
 - Authentication flow completes (login → dashboard, signup → dashboard)
 - Server-side auth test: calling a Convex query with User B's token cannot return User A's data
 - `users` table has one record per authenticated user
@@ -1055,6 +1087,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement the full Convex schema, queries, mutations, and validation.
 
 **Scope:**
+
 - Full schema from Section 6 (scoped to MVP tables: users, categories, transactions, budgets, budgetCategories, savingsGoals)
 - Seed system categories
 - All queries and mutations for these tables
@@ -1063,6 +1096,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 3 complete
 
 **Implementation requirements:**
+
 1. Implement the schema exactly as defined in Section 6 for MVP tables.
 2. Seed 12-15 system categories on user creation (food, transport, utilities, salary, etc.) with both English slugs and Urdu labels.
 3. Implement queries:
@@ -1081,22 +1115,26 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. Wire existing hooks to Convex.
 
 **Files likely affected:**
+
 - `convex/schema.ts`
 - `convex/transactions.ts`, `convex/budgets.ts`, `convex/goals.ts`, `convex/categories.ts`
 - `hooks/*.ts` (now call `useQuery`, `useMutation`)
 
 **Do not:**
+
 - Implement AI features
 - Implement import features
 - Build conversations tables yet
 
 **Tests:**
+
 - Create a transaction → it appears in `getTransactions`
 - Delete a transaction → it no longer appears
 - Budget utilization query returns correct % spent per category
 - Authorization: mutations fail for wrong userId
 
 **Success criteria:**
+
 - A transaction created through a hook persists across page refresh
 - Financial summary query returns accurate income, expense, and net figures matching manually summed transactions
 - All mutations reject invalid input with clear error messages
@@ -1111,6 +1149,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Complete transaction management UI connected to the real Convex layer.
 
 **Scope:**
+
 - Add transaction form (manual)
 - Edit transaction form
 - Delete transaction with confirmation dialog
@@ -1121,6 +1160,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 4 complete
 
 **Implementation requirements:**
+
 1. Add transaction form: amount, type, category (searchable dropdown), date, description, notes.
 2. Edit form: pre-populate all fields from the existing record.
 3. Delete: shadcn AlertDialog for confirmation. Only deletes after explicit confirm.
@@ -1130,16 +1170,19 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 7. Dashboard recent transactions widget now shows real data.
 
 **Files likely affected:**
+
 - `components/transactions/**`
 - `app/(app)/transactions/`
 - `components/dashboard/`
 - `hooks/useTransactions.ts`
 
 **Do not:**
+
 - Implement conversational entry (Phase 8)
 - Implement import (Phase 12)
 
 **Tests:**
+
 - Create a transaction → appears in list immediately (Convex reactivity)
 - Edit a transaction → changes reflected everywhere (list + dashboard)
 - Delete a transaction → removed from list, dashboard updates
@@ -1147,6 +1190,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - Empty state shows when no transactions match a filter
 
 **Success criteria:**
+
 - A transaction entered through the UI persists through browser refresh
 - Dashboard balance updates correctly when a new transaction is added
 - Filter and search return accurate results from Convex data
@@ -1160,6 +1204,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement budgets, category limits, savings goals, and progress tracking.
 
 **Scope:**
+
 - Monthly budget creation UI
 - Per-category limit setting
 - Budget utilization display
@@ -1169,6 +1214,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 5 complete
 
 **Implementation requirements:**
+
 1. Budget creation: user selects month, sets total limit (optional), sets category limits.
 2. Budget utilization: computed real-time from `getFinancialSummary` vs `getBudgetCategories`.
 3. Progress bars: color coded (green < 60%, yellow 60-80%, orange 80-99%, red ≥ 100%).
@@ -1177,6 +1223,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. `recurringExpenses` table wired to reminders (Phase 13 for proactive push; here just display).
 
 **Files likely affected:**
+
 - `components/budgets/**`
 - `components/goals/**`
 - `app/(app)/budgets/`, `app/(app)/goals/`
@@ -1184,12 +1231,14 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `lib/finance/calculations.ts`
 
 **Tests:**
+
 - Budget at 0% shows green
 - Budget at 85% shows orange and triggers warning
 - Budget over 100% shows red
 - Savings goal progress reflects real transaction amounts
 
 **Success criteria:**
+
 - A user can create a budget, add category limits, enter transactions, and observe real utilization percentages
 - A savings goal shows correct progress from real transaction data
 - Warnings appear at correct thresholds
@@ -1203,6 +1252,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement the full Urdu-first experience throughout all existing screens and features.
 
 **Scope:**
+
 - Complete `lib/i18n/ur.ts` string map covering all existing UI text
 - `t("key")` function applied to all user-facing strings
 - RTL layout active when language is Urdu
@@ -1213,6 +1263,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 6 complete
 
 **Implementation requirements:**
+
 1. Implement `<LanguageProvider>` that sets `lang` and `dir` on the root element.
 2. Replace all hardcoded English strings in components with `t("key")`.
 3. Apply Tailwind RTL variants throughout. Test each screen in RTL mode.
@@ -1222,6 +1273,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 7. Persist language preference in the `users` table.
 
 **Files likely affected:**
+
 - `lib/i18n/ur.ts`, `lib/i18n/en.ts`, `lib/i18n/format.ts`
 - Every component with user-visible text
 - `app/layout.tsx`
@@ -1229,16 +1281,19 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `lib/ai/prompts/base.ts`
 
 **Do not:**
+
 - Break existing English functionality
 - Use machine-translated strings without review — prefer accurate Urdu for financial terms
 
 **Tests:**
+
 - Toggle to Urdu: all primary screens display Urdu text and RTL layout
 - Toggle back to English: English text and LTR layout
 - No text overflow or broken alignment in RTL mode at all three breakpoints
 - PKR amounts render correctly in both modes
 
 **Success criteria:**
+
 - A complete core workflow (add transaction, view dashboard, set budget) can be performed entirely in Urdu
 - RTL layout does not break at 320px, 768px, or 1280px
 - Zero hardcoded English strings remain in components
@@ -1252,6 +1307,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Introduce the financial assistant with context-aware, data-grounded responses.
 
 **Scope:**
+
 - Conversation UI fully wired
 - AI model integrated (Gemini or GPT-4o)
 - Financial context builder connected to Convex
@@ -1263,6 +1319,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 7 complete
 
 **Implementation requirements:**
+
 1. Connect conversation and messages tables in Convex.
 2. Build `lib/ai/context-builder.ts` — fetches and assembles `FinancialContext`.
 3. Implement intent classifier as the first AI call in the pipeline.
@@ -1275,6 +1332,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 10. Store all messages in Convex.
 
 **Files likely affected:**
+
 - `lib/ai/**`
 - `convex/conversations.ts`, `convex/messages.ts`
 - `hooks/useAssistant.ts`
@@ -1282,16 +1340,19 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `app/(app)/assistant/`
 
 **Do not:**
+
 - Execute any mutation from the AI in this phase
 - Claim analysis is "AI-powered" when it is using hardcoded responses
 
 **Tests:**
+
 - Ask "Inflation kya hoti hai?" → receives Urdu explanation with no hallucinated user data
 - Ask "Is mahine kitna kharch hua?" → receives answer derived from actual transaction data
 - Ask "Food delivery budget kya hai?" → returns real budget figure from Convex
 - Model output failing Zod schema → user sees clarification request, no crash
 
 **Success criteria:**
+
 - Educational question returns correct Urdu explanation
 - Financial analysis response cites real user data
 - Zod schema validation catches and handles malformed model output
@@ -1306,6 +1367,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement the confirmation-gated AI action system for bounded financial mutations.
 
 **Scope:**
+
 - `pendingActions` table
 - Confirmation gate UI
 - Write tools: createTransaction, updateTransaction, deleteTransaction, createBudget, categorizeTransaction, createSavingsGoal
@@ -1314,6 +1376,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 8 complete
 
 **Implementation requirements:**
+
 1. Implement `pendingActions` table queries and mutations.
 2. Implement `ConfirmationCard` component: shows proposed action in Urdu, Confirm / Edit / Cancel buttons.
 3. Wire each write tool through the gate: AI produces a `pendingAction`; the UI renders `ConfirmationCard`; the user's choice triggers the appropriate mutation or rejection.
@@ -1322,16 +1385,19 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. The AI never directly calls a Convex mutation. All writes go through `pendingActions`.
 
 **Files likely affected:**
+
 - `convex/pendingActions.ts` (new)
 - `lib/ai/tools.ts`
 - `components/assistant/ConfirmationCard.tsx` (new)
 - `hooks/useAssistant.ts`
 
 **Do not:**
+
 - Skip the confirmation gate for any write tool
 - Allow AI to execute two write tools in one turn without individual confirmation for each
 
 **Tests:**
+
 - "500 rupay petrol ka add kar do" → ConfirmationCard appears, confirm → transaction created
 - "Is transaction delete kar do" → AlertDialog + ConfirmationCard → confirmed → deleted
 - Cancel → no mutation executed, `pendingAction.status = "rejected"`
@@ -1339,6 +1405,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - Zod validation failure on tool input → error returned, no partial execution
 
 **Success criteria:**
+
 - AI can only execute tools in the permitted list
 - Every mutation executed by AI has a corresponding confirmed `pendingAction` record
 - No mutation executes without user confirmation
@@ -1353,6 +1420,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement data-driven financial analysis, projections, and "can I afford this?" reasoning.
 
 **Scope:**
+
 - Spending anomaly detection
 - Month-over-month comparison
 - End-of-month projection
@@ -1363,6 +1431,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Dependencies:** Phase 9 complete
 
 **Implementation requirements:**
+
 1. Implement `lib/finance/calculations.ts`:
    - `calculateSavingsRate(income, expenses)`
    - `calculateBudgetUtilization(spent, limit)`
@@ -1376,21 +1445,25 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 5. "Can I afford this?" handler: assembles known income, committed expenses, existing goals, remaining budget; passes structured result to AI for Urdu framing.
 
 **Files likely affected:**
+
 - `lib/finance/calculations.ts`, `lib/finance/projections.ts`, `lib/finance/anomaly.ts`
 - `lib/ai/tools.ts` (add calculation tools)
 - `lib/ai/prompts/analysis.ts`
 
 **Do not:**
+
 - Ask the LLM to compute arithmetic
 - Present projections without communicating uncertainty
 
 **Tests:**
+
 - `projectEndOfMonth` with 15 days of data returns a reasonable estimate
 - `detectAnomalies` with a 50% category spike returns a warning
 - `whatIfScenario(context, {category: "food_delivery", pct: 30})` returns correct savings figure
 - "Can I afford Rs. 15,000 phone this month?" returns a structured Urdu answer with stated uncertainty
 
 **Success criteria:**
+
 - Spending anomaly detection identifies at least one genuine anomaly in test data
 - End-of-month projection is computed deterministically from real transactions
 - What-if calculation result matches manual arithmetic
@@ -1405,6 +1478,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Implement Urdu voice input and receipt/image expense entry.
 
 **Scope:**
+
 - Voice input for assistant and transaction entry
 - Receipt/photo capture → OCR → structured expense preview → confirmation
 
@@ -1413,6 +1487,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Implementation requirements:**
 
 **Voice:**
+
 1. Implement `hooks/useVoiceInput.ts` using the Web Speech API (`SpeechRecognition`).
 2. Configure recognition for Urdu (`lang: "ur-PK"`).
 3. If Web Speech API transcription quality is insufficient for Urdu, fall back to Whisper API.
@@ -1421,6 +1496,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. Show transcription text to user before it enters the AI pipeline.
 
 **Receipt:**
+
 1. File/camera input accepting JPEG, PNG, PDF.
 2. Pass image to Google Cloud Vision or Gemini vision endpoint.
 3. Extract: merchant, amount, date, line items (where readable).
@@ -1429,6 +1505,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 6. Provide a "Manual entry" escape if OCR fails.
 
 **Files likely affected:**
+
 - `hooks/useVoiceInput.ts` (new)
 - `components/assistant/VoiceInput.tsx` (new)
 - `components/receipt/**` (new)
@@ -1436,10 +1513,12 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - `lib/ai/tools.ts` (receiptExtraction)
 
 **Do not:**
+
 - Create transactions directly from voice or receipt without the ConfirmationCard
 - Assume OCR output is correct
 
 **Tests:**
+
 - Voice: partial transcription shown to user, not silently sent to AI
 - Voice: unclear input returns clarification prompt, not a fabricated transaction
 - Receipt: extracted fields rendered in editable form
@@ -1447,6 +1526,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 - Receipt: OCR failure shows graceful error and manual entry option
 
 **Success criteria:**
+
 - Voice input produces an editable, reviewable transaction draft before creation
 - Receipt upload produces an editable, reviewable form before creation
 - Both workflows complete without error on mobile Chrome and Safari
@@ -1460,6 +1540,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Objective:** Support importing financial records from CSV and bank statement files.
 
 **Scope:**
+
 - File upload (CSV, PDF bank statements)
 - Parsing and format detection
 - Column mapping
@@ -1475,6 +1556,7 @@ Each phase is a gate. A phase is **COMPLETE** only when every success criterion 
 **Implementation requirements:**
 
 Import pipeline (must implement in order):
+
 ```
 1. File upload → Convex storage
 2. Validation (format, encoding, size limit)
@@ -1495,12 +1577,14 @@ Import pipeline (must implement in order):
 5. Maximum import batch: 500 transactions per import.
 
 **Files likely affected:**
+
 - `convex/imports.ts` (new)
 - `lib/finance/import/csv.ts`, `lib/finance/import/normalizer.ts`
 - `components/import/**` (new)
 - `app/(app)/transactions/import/`
 
 **Tests:**
+
 - Standard CSV with date, amount, description columns → correctly parsed
 - CSV with reversed column order → auto-detected
 - Malformed CSV → clear error shown, no records created
@@ -1508,6 +1592,7 @@ Import pipeline (must implement in order):
 - Import partially fails halfway → no records from that batch persist
 
 **Success criteria:**
+
 - A standard bank CSV imports correctly with zero data corruption
 - Duplicate detection correctly identifies at least 2 of 3 artificially injected duplicates
 - No partial import is possible (atomic)
@@ -1522,6 +1607,7 @@ Import pipeline (must implement in order):
 **Objective:** Implement limited, explainable, user-controllable proactive features.
 
 **Scope:**
+
 - Budget threshold warnings (80%, 100%)
 - Recurring expense reminders
 - Unusual spending alerts
@@ -1530,6 +1616,7 @@ Import pipeline (must implement in order):
 **Dependencies:** Phase 10 complete
 
 **Implementation requirements:**
+
 1. Budget warnings: triggered when a new transaction pushes utilization to 80% or 100%. Show as toast + assistant message.
 2. Recurring expense reminders: check `recurringExpenses.nextDueDate` on login. If within 3 days, show a reminder banner.
 3. Unusual spending alert: if current month's category total exceeds the 3-month rolling average by > 30%, surface a dashboard card.
@@ -1537,15 +1624,18 @@ Import pipeline (must implement in order):
 5. All proactive features can be disabled per-category in settings.
 
 **Do not:**
+
 - Send unsolicited push notifications (deferred)
 - Alert for every small transaction
 
 **Tests:**
+
 - Transaction pushing budget to 81% → warning appears
 - Recurring expense due in 2 days → reminder banner visible
 - Category 40% above 3-month average → anomaly card visible
 
 **Success criteria:**
+
 - Budget warnings appear at correct thresholds
 - Recurring reminders surface at correct intervals
 - Anomaly detection surfaces a real data-driven alert
@@ -1563,23 +1653,24 @@ Import pipeline (must implement in order):
 
 **Test cases to cover (minimum):**
 
-| Category | Test |
-|---|---|
-| Empty state | User with zero transactions sees correct empty states on all screens |
-| Large amounts | Transaction of Rs. 9,999,999 creates and displays correctly |
-| Invalid input | Negative amount rejected server-side with clear error |
-| Duplicate | Two identical transactions → duplicate warning on second |
-| Ambiguous Urdu | "Kal paise diye" (no amount) → clarification request, no fabricated transaction |
-| Mixed language | "Aaj Rs 500 ka khana order kiya" → correctly parsed |
-| Malformed CSV | CSV with missing header → clear error, nothing persisted |
-| Duplicate import | Re-importing same CSV → duplicates flagged |
-| AI failure | AI API timeout → user sees error, app does not crash |
-| Mutation failure | Convex mutation fails → UI shows error, state consistent |
-| Auth isolation | Unauthenticated request to any mutation → rejected |
-| RTL | All screens render correctly in RTL at 320px |
-| Responsive | All screens render correctly at 768px and 1280px |
+| Category         | Test                                                                            |
+| ---------------- | ------------------------------------------------------------------------------- |
+| Empty state      | User with zero transactions sees correct empty states on all screens            |
+| Large amounts    | Transaction of Rs. 9,999,999 creates and displays correctly                     |
+| Invalid input    | Negative amount rejected server-side with clear error                           |
+| Duplicate        | Two identical transactions → duplicate warning on second                        |
+| Ambiguous Urdu   | "Kal paise diye" (no amount) → clarification request, no fabricated transaction |
+| Mixed language   | "Aaj Rs 500 ka khana order kiya" → correctly parsed                             |
+| Malformed CSV    | CSV with missing header → clear error, nothing persisted                        |
+| Duplicate import | Re-importing same CSV → duplicates flagged                                      |
+| AI failure       | AI API timeout → user sees error, app does not crash                            |
+| Mutation failure | Convex mutation fails → UI shows error, state consistent                        |
+| Auth isolation   | Unauthenticated request to any mutation → rejected                              |
+| RTL              | All screens render correctly in RTL at 320px                                    |
+| Responsive       | All screens render correctly at 768px and 1280px                                |
 
 **Implementation requirements:**
+
 1. Write unit tests for all `lib/finance/` functions.
 2. Write integration tests for all Convex mutations (auth, validation, authorization).
 3. Write integration tests for the confirmation gate cycle.
@@ -1588,6 +1679,7 @@ Import pipeline (must implement in order):
 6. Run `npm audit` and address any high/critical vulnerabilities.
 
 **Success criteria:**
+
 - All unit tests pass
 - All integration tests pass
 - No critical/high npm audit vulnerabilities
@@ -1603,11 +1695,13 @@ Import pipeline (must implement in order):
 **Objective:** Optimize the final product for judging criteria without adding unstable features.
 
 **Judging criteria:**
+
 1. Problem impact
 2. Creative use of AI
 3. Practical viability
 
 **Implementation requirements:**
+
 1. Onboarding: first-time user sees a 3-step Urdu onboarding card (set income, first budget, connect assistant).
 2. Demo mode: one hardcoded test user with realistic financial history for live judging demo (isolated, not affecting production).
 3. Landing page: clear product pitch in Urdu and English. Demonstrates the core value proposition before login.
@@ -1617,10 +1711,12 @@ Import pipeline (must implement in order):
 7. Deploy to production (Vercel + Convex production environment).
 
 **Do not:**
+
 - Add new AI features that are not already working
 - Add features that introduce instability two days before submission
 
 **Success criteria:**
+
 - App deployed and accessible at a public URL
 - Demo user produces a compelling judge walkthrough in under 5 minutes
 - All Tier 1 features working end-to-end with real data
@@ -1672,20 +1768,20 @@ Phases 10, 11, and 12 may be developed in parallel after Phase 9, provided they 
 
 ### Objective criteria (agent must verify these, not estimate them)
 
-| Criterion | Measurement |
-|---|---|
-| Transaction round-trip | Transaction created in UI → visible in Convex dashboard → reflected in financial summary |
-| Auth isolation | User B's Convex token cannot return User A's records |
-| Budget utilization accuracy | Computed % matches manual sum of category transactions / limit × 100 |
-| RTL layout | No alignment regression at 320px with `dir="rtl"` |
-| AI grounding | AI financial claim cites a real Convex record, not a hallucinated figure |
-| Confirmation gate | Zero write-tool mutations exist in Convex without a corresponding confirmed `pendingAction` |
-| Import atomicity | Interrupted import leaves zero partial records |
-| Duplicate detection | Re-importing same 10 transactions flags at least 9 as duplicates |
-| Calculation correctness | `projectEndOfMonth`, `whatIfScenario`, and `calculateSavingsRate` match manual arithmetic |
-| Urdu coverage | Zero hardcoded English strings in any component (only in `en.ts`) |
-| Empty states | All screens display defined empty states when Convex returns empty arrays |
-| Error handling | No raw Convex or API error messages visible to the user in production |
+| Criterion                   | Measurement                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Transaction round-trip      | Transaction created in UI → visible in Convex dashboard → reflected in financial summary    |
+| Auth isolation              | User B's Convex token cannot return User A's records                                        |
+| Budget utilization accuracy | Computed % matches manual sum of category transactions / limit × 100                        |
+| RTL layout                  | No alignment regression at 320px with `dir="rtl"`                                           |
+| AI grounding                | AI financial claim cites a real Convex record, not a hallucinated figure                    |
+| Confirmation gate           | Zero write-tool mutations exist in Convex without a corresponding confirmed `pendingAction` |
+| Import atomicity            | Interrupted import leaves zero partial records                                              |
+| Duplicate detection         | Re-importing same 10 transactions flags at least 9 as duplicates                            |
+| Calculation correctness     | `projectEndOfMonth`, `whatIfScenario`, and `calculateSavingsRate` match manual arithmetic   |
+| Urdu coverage               | Zero hardcoded English strings in any component (only in `en.ts`)                           |
+| Empty states                | All screens display defined empty states when Convex returns empty arrays                   |
+| Error handling              | No raw Convex or API error messages visible to the user in production                       |
 
 ---
 
@@ -1696,6 +1792,7 @@ Phases 10, 11, and 12 may be developed in parallel after Phase 9, provided they 
 Test all `lib/finance/` functions in isolation with typed fixtures.
 
 Priority:
+
 - `calculations.ts`: all exported functions with at least 3 test cases each
 - `projections.ts`: projection accuracy within 5% of known values
 - `anomaly.ts`: anomaly detected when category is 30%+ above rolling average
@@ -1706,6 +1803,7 @@ Priority:
 Test Convex functions against a Convex test environment.
 
 Priority:
+
 - `createTransaction`: valid input creates record; invalid input throws
 - Authorization: `getTransactions` with wrong userId throws `ConvexError`
 - Budget utilization: correct % after inserting 3 category transactions
@@ -1731,6 +1829,7 @@ All calculations verified against manual computation. No test case tolerance > 1
 ### RTL and responsive tests
 
 Performed manually (or with Playwright):
+
 - 320px, 768px, 1280px
 - LTR and RTL modes
 - All primary screens: dashboard, transactions, budgets, assistant, settings
@@ -1860,22 +1959,23 @@ The agent must **never** sacrifice a working Tier 1 feature to add a Tier 3 feat
 
 These features have been explicitly deferred. Do not implement them. Do not create schema fields, components, or routes for them unless a phase explicitly introduces them.
 
-| Feature | Reason deferred |
-|---|---|
-| Open banking / HBL API | Regulatory complexity, security risk, not achievable in hackathon timeline |
-| Investment portfolio tracking | Out of MVP scope |
-| Real-time market data | Third-party dependency, cost, out of scope |
-| Push notifications | Requires service worker + FCM, disproportionate setup cost |
-| PDF report export | Low judging impact relative to implementation cost |
-| Multi-currency | Adds validation complexity, deferred post-Pakistan launch |
-| Shared budgets | Auth complexity, deferred |
-| React Native app | Separate codebase, deferred |
-| SMS-based input | Twilio cost, out of scope |
-| Professional financial advice mode | Regulated, explicitly prohibited |
+| Feature                            | Reason deferred                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| Open banking / HBL API             | Regulatory complexity, security risk, not achievable in hackathon timeline |
+| Investment portfolio tracking      | Out of MVP scope                                                           |
+| Real-time market data              | Third-party dependency, cost, out of scope                                 |
+| Push notifications                 | Requires service worker + FCM, disproportionate setup cost                 |
+| PDF report export                  | Low judging impact relative to implementation cost                         |
+| Multi-currency                     | Adds validation complexity, deferred post-Pakistan launch                  |
+| Shared budgets                     | Auth complexity, deferred                                                  |
+| React Native app                   | Separate codebase, deferred                                                |
+| SMS-based input                    | Twilio cost, out of scope                                                  |
+| Professional financial advice mode | Regulated, explicitly prohibited                                           |
 
 ---
 
-*This document was last updated during project initialization. All agents must update the "Phase Dependencies" section with actual completion dates as phases are finished.*
+_This document was last updated during project initialization. All agents must update the "Phase Dependencies" section with actual completion dates as phases are finished._
 
-*The product's strongest differentiator must remain:*
+_The product's strongest differentiator must remain:_
+
 > **Conversational Urdu + real personal financial context + explainable AI + safe action-taking.**

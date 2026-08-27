@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# convex auto-generated
+convex/_generated/
+
+# shadcn/ui generated components (re-installable via npx shadcn)
+# Uncomment if you want to exclude them from version control:
+# components/ui/
