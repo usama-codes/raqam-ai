@@ -6,11 +6,14 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { getUserId } from "./auth";
+import { seedSystemCategories } from "./categories";
 
 /**
  * Ensure a `users` record exists for the authenticated Clerk user.
  * Called on first login / session start. Idempotent — returns existing
  * document ID if the user already exists.
+ *
+ * On first creation, also seeds the 14 system categories for the user.
  */
 export const ensureUser = mutation({
   args: {
@@ -31,7 +34,7 @@ export const ensureUser = mutation({
     }
 
     // Create new user record
-    return await ctx.db.insert("users", {
+    const userId = await ctx.db.insert("users", {
       clerkId,
       email: args.email,
       name: args.name,
@@ -39,6 +42,11 @@ export const ensureUser = mutation({
       currency: "PKR",
       createdAt: Date.now(),
     });
+
+    // Seed system categories for the new user
+    await seedSystemCategories(ctx, userId);
+
+    return userId;
   },
 });
 

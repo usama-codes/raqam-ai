@@ -3,12 +3,19 @@
 import * as React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from "convex/react";
-import { anyApi } from "convex/server";
+import { api } from "@/convex/_generated/api";
+
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 500;
 
 /**
  * Ensures a `users` record exists in Convex for the signed-in Clerk user.
  * Renders a loading state while the user record is being created.
  * This component is mounted inside ConvexClientProvider.
+ *
+ * Includes retry with exponential backoff to handle the timing gap between
+ * Clerk reporting isSignedIn=true and the Convex client having the JWT
+ * available for request authentication.
  *
  * When Convex is not yet configured (no NEXT_PUBLIC_CONVEX_URL), it silently
  * passes through so the UI remains functional with stub hooks.
@@ -18,9 +25,8 @@ export function UserCreationGuard({ children }: { children: React.ReactNode }) {
   const [ensured, setEnsured] = React.useState(false);
   const hasConvex = !!process.env.NEXT_PUBLIC_CONVEX_URL;
 
-  // Using anyApi since typed API references require `npx convex dev` codegen
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ensureUser = useMutation(anyApi.users.ensureUser as any);
+  const ensureUser = useMutation((api as any).users.ensureUser);
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn || !user || ensured || !hasConvex) return;
@@ -28,17 +34,27 @@ export function UserCreationGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function run() {
-      try {
-        await ensureUser({
-          email: user!.email,
-          name: user!.name ?? undefined,
-        });
-        if (!cancelled) setEnsured(true);
-      } catch {
-        // Convex may not be deployed yet.
-        // Silently proceed so the UI doesn't block forever.
-        if (!cancelled) setEnsured(true);
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          await ensureUser({
+            email: user!.email,
+            name: user!.name ?? undefined,
+          });
+          if (!cancelled) setEnsured(true);
+          return;
+        } catch {
+          // Retry with exponential backoff — Clerk's JWT may not yet be
+          // propagated to the Convex client on the first render after signup.
+          if (cancelled) return;
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise((r) =>
+              setTimeout(r, BASE_DELAY_MS * 2 ** attempt),
+            );
+          }
+        }
       }
+      // All retries exhausted — proceed so the UI doesn't block forever.
+      if (!cancelled) setEnsured(true);
     }
 
     run();
@@ -47,8 +63,8 @@ export function UserCreationGuard({ children }: { children: React.ReactNode }) {
     };
   }, [isLoaded, isSignedIn, user, ensured, ensureUser, hasConvex]);
 
-  // While Clerk is loading auth state, show a spinner
-  if (!isLoaded) {
+  // Block children until Clerk is loaded AND the user record is ensured.
+  if (!isLoaded || (isSignedIn && !ensured && hasConvex)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F7F4EC]">
         <div className="flex flex-col items-center gap-3">

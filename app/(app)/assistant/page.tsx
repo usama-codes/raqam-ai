@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useAssistant } from "@/hooks/useAssistant";
 import type { InputMode } from "@/hooks/useAssistant";
-import { EmptyState, ErrorState } from "@/components/shared/DataStates";
+import { ErrorState } from "@/components/shared/DataStates";
 
 export default function AssistantPage() {
   const { messages, loading, sending, error, sendMessage } = useAssistant();

@@ -1,20 +1,79 @@
 "use client";
 
+import * as React from "react";
 import { useGoals } from "@/hooks/useGoals";
 import {
   CardSkeleton,
   EmptyState,
   ErrorState,
 } from "@/components/shared/DataStates";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function pkr(n: number) {
   return `Rs. ${n.toLocaleString()}`;
 }
 
 export default function GoalsPage() {
-  const { goals, loading, error } = useGoals();
+  const { goals, loading, error, contributeToGoal } = useGoals();
 
   const totalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
+
+  /* ── Contribute dialog state ── */
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [activeGoal, setActiveGoal] = React.useState<{
+    id: string;
+    name: string;
+    targetAmount: number;
+    currentAmount: number;
+  } | null>(null);
+  const [amount, setAmount] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [fieldError, setFieldError] = React.useState("");
+
+  const openContributeDialog = (goal: {
+    id: string;
+    name: string;
+    nameUr?: string;
+    targetAmount: number;
+    currentAmount: number;
+  }) => {
+    setActiveGoal({
+      id: goal.id,
+      name: goal.nameUr ?? goal.name,
+      targetAmount: goal.targetAmount,
+      currentAmount: goal.currentAmount,
+    });
+    setAmount("");
+    setFieldError("");
+    setDialogOpen(true);
+  };
+
+  const handleContributeSubmit = async () => {
+    if (!activeGoal) return;
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+      setFieldError("براہ کرم درست رقم درج کریں۔");
+      return;
+    }
+    setSubmitting(true);
+    setFieldError("");
+    try {
+      await contributeToGoal(activeGoal.id, parsed);
+      setDialogOpen(false);
+    } catch {
+      setFieldError("خرابی آئی۔ دوبارہ کوشش کریں۔");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col">
@@ -127,7 +186,10 @@ export default function GoalsPage() {
                         </span>
                       </div>
                     </div>
-                    <button className="rounded-[9px] border-0 bg-[#F1EEE4] py-[11px] text-[14px]">
+                    <button
+                      onClick={() => openContributeDialog(g)}
+                      className="rounded-[9px] border-0 bg-[#F1EEE4] py-[11px] text-[14px] hover:bg-[#E7E2D6]"
+                    >
                       رقم جمع کریں
                     </button>
                   </div>
@@ -148,6 +210,57 @@ export default function GoalsPage() {
           </>
         )}
       </div>
+
+      {/* ── Contribute Dialog ── */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md border-[#E7E2D6] bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[18px]">رقم جمع کریں</DialogTitle>
+            <DialogDescription className="text-[14px] text-[#6B7A70]">
+              {activeGoal?.name} — موجودہ: {pkr(activeGoal?.currentAmount ?? 0)}{" "}
+              / {pkr(activeGoal?.targetAmount ?? 0)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 pt-2">
+            <label className="text-[13px] text-[#6B7A70]">رقم (PKR)</label>
+            <Input
+              type="number"
+              placeholder="مثلاً 5000"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setFieldError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleContributeSubmit();
+              }}
+              className="h-11 text-[16px] border-[#DCD6C8] bg-[#FBF9F4] px-3.5"
+              autoFocus
+            />
+            {fieldError && (
+              <span className="text-[13px] text-[#B3261E]">{fieldError}</span>
+            )}
+          </div>
+
+          <div className="flex gap-2.5 pt-3">
+            <Button
+              onClick={() => setDialogOpen(false)}
+              variant="outline"
+              className="flex-1 h-10 text-[14px] border-[#DCD6C8]"
+            >
+              منسوخ
+            </Button>
+            <Button
+              onClick={handleContributeSubmit}
+              disabled={submitting || !amount.trim()}
+              className="flex-1 h-10 text-[14px] bg-[#0F5132] text-white hover:bg-[#14231B]"
+            >
+              {submitting ? "جمع ہو رہا ہے…" : "جمع کریں"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -12,7 +12,20 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Design reference files (not project code):
+    "Raqam-AI Financial Dashboard Design/**",
+    // Convex auto-generated files:
+    "convex/_generated/**",
   ]),
+  {
+    rules: {
+      // Allow underscore-prefixed parameters (used in stub hooks for future phases)
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

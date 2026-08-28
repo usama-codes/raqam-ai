@@ -305,6 +305,7 @@ export default function TransactionsPage() {
       <TransactionFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
+        categories={categories}
         initialData={editData}
         onSubmit={handleFormSubmit}
       />

@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { SYSTEM_CATEGORIES } from "@/lib/finance/categories";
+import type { Category } from "@/hooks/useCategories";
 
 /* ── Types ── */
 export interface TransactionFormData {
@@ -43,6 +43,8 @@ const EMPTY: TransactionFormData = {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Convex categories to populate the category select */
+  categories: Category[];
   /** Pass existing data to enter "edit" mode */
   initialData?: Partial<TransactionFormData>;
   onSubmit: (data: TransactionFormData) => void;
@@ -51,6 +53,7 @@ interface Props {
 export function TransactionFormDialog({
   open,
   onOpenChange,
+  categories,
   initialData,
   onSubmit,
 }: Props) {
@@ -72,6 +75,7 @@ export function TransactionFormDialog({
           <TransactionFormInner
             key={formKey}
             isEdit={isEdit}
+            categories={categories}
             initialData={initialData}
             onSubmit={onSubmit}
             onClose={() => onOpenChange(false)}
@@ -85,11 +89,13 @@ export function TransactionFormDialog({
 /* ── Inner form (remounts on each open via key) ── */
 function TransactionFormInner({
   isEdit,
+  categories: allCategories,
   initialData,
   onSubmit,
   onClose,
 }: {
   isEdit: boolean;
+  categories: Category[];
   initialData?: Partial<TransactionFormData>;
   onSubmit: (data: TransactionFormData) => void;
   onClose: () => void;
@@ -129,7 +135,7 @@ function TransactionFormInner({
     if (validate()) onSubmit(form);
   };
 
-  const categories = SYSTEM_CATEGORIES.filter(
+  const categories = allCategories.filter(
     (c) => c.type === form.type || c.type === "both",
   );
 
@@ -212,7 +218,7 @@ function TransactionFormInner({
             </SelectTrigger>
             <SelectContent className="bg-white">
               {categories.map((cat) => (
-                <SelectItem key={cat.name} value={cat.name}>
+                <SelectItem key={cat.id} value={cat.id}>
                   <span>{cat.icon}</span>
                   <span>{cat.nameUr}</span>
                 </SelectItem>

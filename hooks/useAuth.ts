@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useUser as useClerkUser } from "@clerk/nextjs";
+import { useUser as useClerkUser, useClerk } from "@clerk/nextjs";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ export interface UseAuthReturn {
  */
 export function useAuth(): UseAuthReturn {
   const { user, isSignedIn, isLoaded } = useClerkUser();
+  const { signOut: clerkSignOut } = useClerk();
 
   const authUser: AuthUser | null = React.useMemo(() => {
     if (!user) return null;
@@ -43,9 +44,7 @@ export function useAuth(): UseAuthReturn {
     isSignedIn: isSignedIn ?? false,
     isLoaded: isLoaded ?? false,
     signOut: async () => {
-      // Clerk's signOut is available via useClerk, but we expose
-      // it through the hook for convenience.
-      window.location.href = "/login";
+      await clerkSignOut({ redirectUrl: "/login" });
     },
   };
 }

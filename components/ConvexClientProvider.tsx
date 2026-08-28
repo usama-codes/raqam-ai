@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexReactClient } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { useAuth } from "@clerk/nextjs";
 
 let convexClient: ConvexReactClient | null = null;
 
@@ -19,7 +21,9 @@ export const ConvexAvailableContext = React.createContext(false);
 /**
  * Provides the Convex React context to the component tree.
  *
- * When `NEXT_PUBLIC_CONVEX_URL` is set, wraps children with `ConvexProvider`.
+ * When `NEXT_PUBLIC_CONVEX_URL` is set, wraps children with
+ * `ConvexProviderWithClerk` which bridges Clerk's auth with Convex,
+ * handling JWT token exchange automatically.
  * When not set (e.g. before a Convex deployment is created), renders children
  * directly without the provider. Use `ConvexAvailableContext` to check
  * availability before calling Convex hooks.
@@ -34,7 +38,9 @@ export function ConvexClientProvider({
   if (client) {
     return (
       <ConvexAvailableContext.Provider value={true}>
-        <ConvexProvider client={client}>{children}</ConvexProvider>
+        <ConvexProviderWithClerk client={client} useAuth={useAuth}>
+          {children}
+        </ConvexProviderWithClerk>
       </ConvexAvailableContext.Provider>
     );
   }

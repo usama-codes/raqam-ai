@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 import { type QueryCtx, type MutationCtx } from "./_generated/server";
+import type { Id, Doc } from "./_generated/dataModel";
 
 /**
  * Extracts the authenticated user's Clerk ID from the Convex auth context.
@@ -23,11 +24,32 @@ export async function getUserId(ctx: QueryCtx | MutationCtx): Promise<string> {
  */
 export async function getUserDocId(
   ctx: QueryCtx | MutationCtx,
-): Promise<string | null> {
+): Promise<Id<"users"> | null> {
   const clerkId = await getUserId(ctx);
   const user = await ctx.db
     .query("users")
     .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
     .first();
   return user?._id ?? null;
+}
+
+/**
+ * Retrieves the authenticated user's document from the `users` table.
+ * Throws ConvexError if the user is not authenticated or not found.
+ *
+ * Usage: Every Convex query/mutation that needs the user document:
+ *   const user = await requireUser(ctx);
+ */
+export async function requireUser(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Doc<"users">> {
+  const clerkId = await getUserId(ctx);
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+    .first();
+  if (!user) {
+    throw new ConvexError("User not found. Call ensureUser first.");
+  }
+  return user;
 }

@@ -10,7 +10,6 @@ import {
   ErrorState,
   StatCardSkeleton,
   ChartSkeleton,
-  ListSkeleton,
 } from "@/components/shared/DataStates";
 
 function pkr(n: string | number) {

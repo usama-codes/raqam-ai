@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -41,37 +43,76 @@ export interface UseGoalsReturn {
   deleteGoal: (id: string) => Promise<void>;
 }
 
-// ─── Hook (Phase 2: returns empty data; Convex wired in Phase 4) ─────────────────
+// ─── Hook (Phase 4: wired to Convex) ─────────────────────────────────────────────
 
 export function useGoals(): UseGoalsReturn {
+  const rawGoals = useQuery(api.goals.list);
+  const create = useMutation(api.goals.create);
+  const update = useMutation(api.goals.update);
+  const contribute = useMutation(api.goals.contribute);
+  const remove = useMutation(api.goals.remove);
+
+  const goals: SavingsGoal[] = React.useMemo(() => {
+    if (!rawGoals) return [];
+    return rawGoals.map((g) => ({
+      id: g._id,
+      name: g.name,
+      nameUr: g.nameUr,
+      targetAmount: g.targetAmount,
+      currentAmount: g.currentAmount,
+      targetDate: g.targetDate,
+      isCompleted: g.isCompleted,
+    }));
+  }, [rawGoals]);
+
   const createGoal = React.useCallback(
-    async (_input: CreateGoalInput): Promise<void> => {
-      // No-op until Convex is connected in Phase 4
+    async (input: CreateGoalInput) => {
+      await create({
+        name: input.name,
+        nameUr: input.nameUr,
+        targetAmount: input.targetAmount,
+        targetDate: input.targetDate,
+      });
     },
-    [],
+    [create],
   );
 
   const updateGoal = React.useCallback(
-    async (_input: UpdateGoalInput): Promise<void> => {
-      // No-op until Convex is connected in Phase 4
+    async (input: UpdateGoalInput) => {
+      await update({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        id: input.id as any,
+        name: input.name,
+        nameUr: input.nameUr,
+        targetAmount: input.targetAmount,
+        targetDate: input.targetDate,
+      });
     },
-    [],
+    [update],
   );
 
   const contributeToGoal = React.useCallback(
-    async (_id: string, _amount: number): Promise<void> => {
-      // No-op until Convex is connected in Phase 4
+    async (id: string, amount: number) => {
+      await contribute({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        id: id as any,
+        amount,
+      });
     },
-    [],
+    [contribute],
   );
 
-  const deleteGoal = React.useCallback(async (_id: string): Promise<void> => {
-    // No-op until Convex is connected in Phase 4
-  }, []);
+  const deleteGoal = React.useCallback(
+    async (id: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await remove({ id: id as any });
+    },
+    [remove],
+  );
 
   return {
-    goals: [],
-    loading: false,
+    goals,
+    loading: rawGoals === undefined,
     error: null,
     createGoal,
     updateGoal,

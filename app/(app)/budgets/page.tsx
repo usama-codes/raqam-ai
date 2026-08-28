@@ -35,6 +35,7 @@ export default function BudgetsPage() {
   const totalSpent = budgetCategories.reduce((sum, b) => sum + b.spent, 0);
   const overallPct =
     totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
+  const hasBudget = !!budget;
 
   return (
     <div className="flex flex-col">
@@ -44,7 +45,9 @@ export default function BudgetsPage() {
           <p className="text-[14px] text-[#6B7A70]">
             {budgetCategories.length > 0
               ? `کل حد ${pkr(totalLimit)} · خرچ ${pkr(totalSpent)}`
-              : "کوئی بجٹ مقرر نہیں"}
+              : hasBudget
+                ? `کل حد ${pkr(totalLimit)} · ابھی تک کوئی زمرہ شامل نہیں`
+                : "کوئی بجٹ مقرر نہیں"}
           </p>
         </div>
         <button className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]">
@@ -68,7 +71,7 @@ export default function BudgetsPage() {
       )}
 
       {/* ── Empty ── */}
-      {!loading && !error && budgetCategories.length === 0 && (
+      {!loading && !error && !hasBudget && (
         <div className="px-6 pb-12 pt-6 sm:px-10">
           <EmptyState
             icon="📊"
@@ -76,6 +79,26 @@ export default function BudgetsPage() {
             description="ماہانہ بجٹ بنائیں اور اپنے اخراجات پر نظر رکھیں۔ زمرہ شامل کریں بٹن دبائیں۔"
             actionLabel="زمرہ شامل کریں"
           />
+        </div>
+      )}
+
+      {/* ── Budget exists but no categories yet ── */}
+      {!loading && !error && hasBudget && budgetCategories.length === 0 && (
+        <div className="grid grid-cols-1 items-start gap-[18px] px-6 pb-12 pt-6 sm:px-10">
+          <div className="flex flex-col gap-[18px] rounded-2xl border border-[#E7E2D6] bg-white p-6">
+            <div className="flex items-end justify-between">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[14px] text-[#6B7A70]">مجموعی حد</span>
+                <span className="font-[var(--font-manrope)] text-[32px] font-extrabold">
+                  {pkr(totalLimit)}
+                </span>
+              </div>
+            </div>
+            <p className="text-[14px] leading-[2] text-[#6B7A70]">
+              آپ نے ماہانہ بجٹ مقرر کر لیا ہے۔ اب زمرے شامل کریں تاکہ آپ کے
+              اخراجات کا موازنہ ہو سکے۔
+            </p>
+          </div>
         </div>
       )}
 
