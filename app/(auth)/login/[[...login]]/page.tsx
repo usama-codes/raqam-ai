@@ -39,10 +39,20 @@ export default function LoginPage() {
                 "rounded-[10px] bg-[#0F5132] text-white hover:bg-[#14231B]",
               footerActionLink: "text-[#0F5132] font-semibold",
               socialButtonsBlockButton:
-                "rounded-[10px] border border-[#DCD6C8] bg-white text-[#14231B] hover:bg-[#FBF9F4]",
+                "rounded-full border border-[#DCD6C8] bg-white p-3 hover:bg-[#FBF9F4] hover:border-[#0F5132] transition-colors",
               formFieldLabel: "text-[14px] text-[#4C5A52]",
               formFieldInput:
                 "rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] text-[15px]",
+              phoneInputBox:
+                "rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4]",
+              countrySelectButton:
+                "rounded-[10px] border-0 bg-transparent hover:bg-[#F1EEE4]",
+              countrySelectDropdown:
+                "rounded-[10px] border border-[#E7E2D6] bg-white shadow-lg",
+              countrySelectSearchInput:
+                "rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4]",
+              otpCodeFieldInput:
+                "rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] text-center text-[18px] tracking-[.3em]",
             },
           }}
         />

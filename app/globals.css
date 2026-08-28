@@ -175,6 +175,50 @@
   html {
     @apply font-sans;
   }
+
+  /* ── Global interactivity: cursor + keyboard focus ── */
+  button,
+  [role="button"],
+  a,
+  select,
+  [tabindex] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  a[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  /* Consistent focus ring for plain <button> and interactive elements */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-rq-cta);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Clerk social buttons: icon-only (hide text) ── */
+.cl-socialButtonsBlockButton {
+  font-size: 0 !important;
+  display: inline-flex !important;
+  justify-content: center;
+  align-items: center;
+  width: auto !important;
+  min-width: 0 !important;
+  gap: 0 !important;
+}
+.cl-socialButtonsBlockButton svg,
+.cl-socialButtonsBlockButton img {
+  width: 20px !important;
+  height: 20px !important;
+}
+.cl-socialButtons {
+  justify-content: center;
+  gap: 12px;
 }
 
 /* ── Voice input pulse animation ── */

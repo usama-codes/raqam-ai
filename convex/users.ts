@@ -17,10 +17,15 @@ import { seedSystemCategories } from "./categories";
  */
 export const ensureUser = mutation({
   args: {
-    email: v.string(),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    username: v.optional(v.string()),
     name: v.optional(v.string()),
   },
-  handler: async (ctx: MutationCtx, args: { email: string; name?: string }) => {
+  handler: async (
+    ctx: MutationCtx,
+    args: { email?: string; phone?: string; username?: string; name?: string },
+  ) => {
     const clerkId = await getUserId(ctx);
 
     // Check if user already exists
@@ -30,6 +35,17 @@ export const ensureUser = mutation({
       .first();
 
     if (existing) {
+      // Patch phone/email/username if they changed (e.g. user added phone later)
+      const updates: Record<string, unknown> = {};
+      if (args.email !== undefined && args.email !== existing.email)
+        updates.email = args.email;
+      if (args.phone !== undefined && args.phone !== existing.phone)
+        updates.phone = args.phone;
+      if (args.username !== undefined && args.username !== existing.username)
+        updates.username = args.username;
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(existing._id, updates);
+      }
       return existing._id;
     }
 
@@ -37,6 +53,8 @@ export const ensureUser = mutation({
     const userId = await ctx.db.insert("users", {
       clerkId,
       email: args.email,
+      phone: args.phone,
+      username: args.username,
       name: args.name,
       preferredLanguage: "ur",
       currency: "PKR",

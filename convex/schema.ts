@@ -5,7 +5,9 @@ export default defineSchema({
   // ─── Users ───────────────────────────────────────────────────────────────
   users: defineTable({
     clerkId: v.string(),
-    email: v.string(),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    username: v.optional(v.string()),
     name: v.optional(v.string()),
     preferredLanguage: v.union(v.literal("ur"), v.literal("en")),
     currency: v.string(),

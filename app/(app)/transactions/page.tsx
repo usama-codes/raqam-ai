@@ -14,6 +14,8 @@ import {
   type TransactionFilters,
 } from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
+import { useBudgets } from "@/hooks/useBudgets";
+import { useToast } from "@/components/shared/Toast";
 import {
   ListSkeleton,
   EmptyState,
@@ -87,6 +89,8 @@ export default function TransactionsPage() {
     deleteTransaction,
   } = useTransactions(filters);
   const { categories } = useCategories();
+  const { budgetCategories } = useBudgets();
+  const { addToast } = useToast();
 
   /* ── Dialog state ── */
   const [formOpen, setFormOpen] = React.useState(false);
@@ -188,6 +192,30 @@ export default function TransactionsPage() {
       });
     }
     setFormOpen(false);
+
+    // Budget warning check for expenses
+    if (data.type === "expense") {
+      const bc = budgetCategories.find((b) => b.categoryId === data.categoryId);
+      if (bc && bc.limit > 0) {
+        const projectedSpent = bc.spent + amount;
+        const pct = Math.round((projectedSpent / bc.limit) * 100);
+        const catName =
+          categories.find((c) => c.id === data.categoryId)?.nameUr ?? "زمرہ";
+        if (pct >= 100) {
+          addToast({
+            type: "error",
+            title: `${catName} بجٹ حد سے تجاوز!`,
+            description: `${pkr(projectedSpent)} / ${pkr(bc.limit)} (${pct}%)`,
+          });
+        } else if (pct >= 80) {
+          addToast({
+            type: "warning",
+            title: `${catName} بجٹ انتباہ`,
+            description: `${pkr(projectedSpent)} / ${pkr(bc.limit)} (${pct}%)`,
+          });
+        }
+      }
+    }
   };
 
   const handleDeleteConfirm = async () => {

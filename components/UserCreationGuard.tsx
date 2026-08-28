@@ -37,7 +37,9 @@ export function UserCreationGuard({ children }: { children: React.ReactNode }) {
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           await ensureUser({
-            email: user!.email,
+            email: user!.email || undefined,
+            phone: user!.phone || undefined,
+            username: user!.username || undefined,
             name: user!.name ?? undefined,
           });
           if (!cancelled) setEnsured(true);

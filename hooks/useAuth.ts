@@ -8,6 +8,8 @@ import { useUser as useClerkUser, useClerk } from "@clerk/nextjs";
 export interface AuthUser {
   id: string; // Clerk user ID
   email: string;
+  phone: string;
+  username: string;
   name: string | null;
   imageUrl: string | null;
 }
@@ -34,6 +36,8 @@ export function useAuth(): UseAuthReturn {
     return {
       id: user.id,
       email: user.primaryEmailAddress?.emailAddress ?? "",
+      phone: user.primaryPhoneNumber?.phoneNumber ?? "",
+      username: user.username ?? "",
       name: user.fullName ?? user.firstName ?? null,
       imageUrl: user.imageUrl ?? null,
     };

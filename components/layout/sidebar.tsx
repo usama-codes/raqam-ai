@@ -93,8 +93,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const displayName = user?.name ?? "صارف";
-  const displayEmail = user?.email ?? "";
+  const displayName = user?.name || user?.username || "صارف";
+  const displayContact = user?.email || user?.phone || user?.username || "";
   const initials = displayName
     .split(" ")
     .map((w) => w[0])
@@ -139,7 +139,7 @@ export function Sidebar() {
           <div className="flex flex-col leading-[1.5]">
             <span className="text-[14px] text-white">{displayName}</span>
             <span className="font-[var(--font-manrope)] text-[11px] text-[#8FB49E]">
-              {displayEmail}
+              {displayContact}
             </span>
           </div>
         </div>
