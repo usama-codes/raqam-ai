@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignOutButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -11,8 +12,10 @@ import {
   Settings,
   Upload,
   Rocket,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const pitchNav = [
   { href: "/", label: "مسئلہ اور حل", en: "PITCH", icon: Rocket },
@@ -88,6 +91,16 @@ function NavSection({
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const displayName = user?.name ?? "صارف";
+  const displayEmail = user?.email ?? "";
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 1)
+    .toUpperCase();
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[268px] shrink-0 flex-col gap-7 overflow-y-auto bg-[#0B3B26] px-5 py-[26px] text-[#DCE7DF] lg:flex">
@@ -118,16 +131,23 @@ export function Sidebar() {
       </nav>
 
       {/* User profile */}
-      <div className="flex items-center gap-2.5 border-t border-white/[.12] pt-4">
-        <div className="grid h-[34px] w-[34px] place-items-center rounded-full bg-[#1E5B3E] text-[14px] text-[#DCE7DF]">
-          ز
+      <div className="flex items-center justify-between border-t border-white/[.12] pt-4">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-[34px] w-[34px] place-items-center rounded-full bg-[#1E5B3E] text-[14px] text-[#DCE7DF]">
+            {initials || "؟"}
+          </div>
+          <div className="flex flex-col leading-[1.5]">
+            <span className="text-[14px] text-white">{displayName}</span>
+            <span className="font-[var(--font-manrope)] text-[11px] text-[#8FB49E]">
+              {displayEmail}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col leading-[1.5]">
-          <span className="text-[14px] text-white">زینب اقبال</span>
-          <span className="font-[var(--font-manrope)] text-[11px] text-[#8FB49E]">
-            zainab@raqam.pk
-          </span>
-        </div>
+        <SignOutButton redirectUrl="/login">
+          <button className="grid h-8 w-8 place-items-center rounded-lg text-[#8FB49E] transition-colors hover:bg-white/10 hover:text-white">
+            <LogOut className="h-4 w-4" />
+          </button>
+        </SignOutButton>
       </div>
     </aside>
   );

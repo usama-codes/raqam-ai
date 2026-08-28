@@ -1,83 +1,128 @@
-import Link from "next/link";
+"use client";
 
-/* ── Hard-coded table rows (matches Raqam-AI.dc.html transactions screen) ── */
-const tableRows = [
-  {
-    date: "آج",
-    desc: "پیٹرول",
-    cat: "آمدورفت",
-    source: "آواز",
-    srcBg: "#EDF1FA",
-    srcFg: "#31518F",
-    amount: "850",
-    type: "expense" as const,
-  },
-  {
-    date: "آج",
-    desc: "کریانہ — الفتح اسٹور",
-    cat: "کھانا و گروسری",
-    source: "رسید",
-    srcBg: "#F5EDF9",
-    srcFg: "#6B3990",
-    amount: "3,240",
-    type: "expense" as const,
-  },
-  {
-    date: "کل",
-    desc: "فری لانس ادائیگی",
-    cat: "آمدنی",
-    source: "دستی",
-    srcBg: "#F1EEE4",
-    srcFg: "#6B7A70",
-    amount: "20,000",
-    type: "income" as const,
-  },
-  {
-    date: "کل",
-    desc: "رکشہ کرایہ",
-    cat: "آمدورفت",
-    source: "معاون",
-    srcBg: "#E6EFE9",
-    srcFg: "#0F5132",
-    amount: "300",
-    type: "expense" as const,
-  },
-  {
-    date: "24 اگست",
-    desc: "بجلی کا بل",
-    cat: "بجلی و گیس",
-    source: "درآمد",
-    srcBg: "#FDF3D8",
-    srcFg: "#6B5B2E",
-    amount: "8,400",
-    type: "expense" as const,
-  },
-  {
-    date: "22 اگست",
-    desc: "اسکول فیس — عمر",
-    cat: "تعلیم",
-    source: "دستی",
-    srcBg: "#F1EEE4",
-    srcFg: "#6B7A70",
-    amount: "15,000",
-    type: "expense" as const,
-  },
-  {
-    date: "20 اگست",
-    desc: "گھر کا کرایہ",
-    cat: "کرایہ",
-    source: "دستی",
-    srcBg: "#F1EEE4",
-    srcFg: "#6B7A70",
-    amount: "45,000",
-    type: "expense" as const,
-  },
-];
+import * as React from "react";
+import Link from "next/link";
+import {
+  TransactionFormDialog,
+  type TransactionFormData,
+} from "@/components/transactions/TransactionFormDialog";
+import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
+import { useTransactions, type Transaction } from "@/hooks/useTransactions";
+import { useCategories } from "@/hooks/useCategories";
+import {
+  ListSkeleton,
+  EmptyState,
+  ErrorState,
+} from "@/components/shared/DataStates";
 
 const gridCols =
   "grid-cols-[100px_minmax(150px,1.6fr)_minmax(120px,1fr)_110px_120px_90px]";
 
+function pkr(n: number) {
+  return `Rs. ${n.toLocaleString()}`;
+}
+
+function formatDate(ms: number): string {
+  const d = new Date(ms);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
+  if (diffDays === 0) return "آج";
+  if (diffDays === 1) return "کل";
+  return d.toLocaleDateString("ur-PK", { day: "numeric", month: "short" });
+}
+
 export default function TransactionsPage() {
+  const {
+    transactions,
+    loading,
+    error,
+    createTransaction,
+    updateTransaction,
+    deleteTransaction,
+  } = useTransactions();
+  const { categories } = useCategories();
+
+  /* ── Dialog state ── */
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editData, setEditData] =
+    React.useState<Partial<TransactionFormData>>();
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<{
+    id: string;
+    desc: string;
+    amount: string;
+  } | null>(null);
+
+  const getCategoryName = (catId: string): string => {
+    const cat = categories.find((c) => c.id === catId || c.name === catId);
+    return cat?.nameUr ?? catId;
+  };
+
+  const handleAdd = () => {
+    setEditData(undefined);
+    setEditId(null);
+    setFormOpen(true);
+  };
+
+  const handleEdit = (tx: Transaction) => {
+    setEditId(tx.id);
+    setEditData({
+      type: tx.type,
+      amount: String(tx.amount),
+      categoryId: tx.categoryId,
+      description: tx.descriptionUr ?? tx.description ?? "",
+      date: new Date(tx.date).toISOString().slice(0, 10),
+      notes: tx.notes ?? "",
+    });
+    setFormOpen(true);
+  };
+
+  const handleDelete = (tx: Transaction) => {
+    setDeleteTarget({
+      id: tx.id,
+      desc: tx.descriptionUr ?? tx.description ?? "",
+      amount: pkr(tx.amount),
+    });
+    setDeleteOpen(true);
+  };
+
+  const handleFormSubmit = async (data: TransactionFormData) => {
+    const amount = parseFloat(data.amount);
+    const dateMs = new Date(data.date).getTime();
+    if (editId) {
+      await updateTransaction({
+        id: editId,
+        type: data.type,
+        amount,
+        categoryId: data.categoryId,
+        date: dateMs,
+        description: data.description,
+        notes: data.notes,
+        source: "manual",
+      });
+    } else {
+      await createTransaction({
+        type: data.type,
+        amount,
+        categoryId: data.categoryId,
+        date: dateMs,
+        description: data.description,
+        notes: data.notes,
+        source: "manual",
+      });
+    }
+    setFormOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteTarget) {
+      await deleteTransaction(deleteTarget.id);
+    }
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+  };
+
   return (
     <div className="flex flex-col">
       {/* ── Header ── */}
@@ -85,7 +130,9 @@ export default function TransactionsPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-[26px] font-bold leading-[1.7]">لین دین</h1>
           <p className="text-[14px] text-[#6B7A70]">
-            41 اندراج · اگست 2026 · نئے پہلے
+            {transactions.length > 0
+              ? `${transactions.length} اندراج · نئے پہلے`
+              : "کوئی اندراج نہیں"}
           </p>
         </div>
         <div className="flex gap-2.5">
@@ -95,7 +142,10 @@ export default function TransactionsPage() {
           >
             اسٹیٹمنٹ درآمد
           </Link>
-          <button className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]">
+          <button
+            onClick={handleAdd}
+            className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]"
+          >
             + نیا لین دین
           </button>
         </div>
@@ -122,145 +172,151 @@ export default function TransactionsPage() {
               آمدنی
             </span>
           </div>
-          <div className="flex items-center gap-2 rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 py-2.5 text-[14px]">
-            <span>1–31 اگست</span>
-            <span className="text-[#8A9690]">▾</span>
-          </div>
-          <div className="hidden items-center gap-2 rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 py-2.5 text-[14px] md:flex">
-            <span>زمرہ: 3 منتخب</span>
-            <span className="text-[#8A9690]">▾</span>
-          </div>
-          <div className="hidden items-center gap-2 rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 py-2.5 text-[14px] md:flex">
-            <span>ذریعہ: سب</span>
-            <span className="text-[#8A9690]">▾</span>
-          </div>
           <button className="text-[14px] text-[#0F5132]">فلٹر ہٹائیں</button>
         </div>
 
-        {/* Data table */}
-        <div className="overflow-x-auto rounded-2xl border border-[#E7E2D6] bg-white">
-          {/* Table header */}
-          <div
-            className={`hidden min-w-[800px] ${gridCols} grid gap-3.5 border-b border-[#E7E2D6] bg-[#FBF9F4] px-5 py-3.5 font-[var(--font-manrope)] text-[11px] tracking-[.12em] text-[#8A9690] md:grid`}
-          >
-            <span>تاریخ</span>
-            <span>تفصیل</span>
-            <span>زمرہ</span>
-            <span>ذریعہ</span>
-            <span>رقم</span>
-            <span></span>
+        {/* ── Loading ── */}
+        {loading && (
+          <div className="overflow-x-auto rounded-2xl border border-[#E7E2D6] bg-white">
+            <ListSkeleton rows={6} />
           </div>
-          {/* Table rows */}
-          {tableRows.map((row, i) => (
+        )}
+
+        {/* ── Error ── */}
+        {error && <ErrorState />}
+
+        {/* ── Empty ── */}
+        {!loading && !error && transactions.length === 0 && (
+          <EmptyState
+            icon="💸"
+            title="کوئی لین دین نہیں"
+            description="ابھی تک کوئی لین دین درج نہیں ہوا۔ اپنا پہلا لین دین شامل کریں یا بینک اسٹیٹمنٹ درآمد کریں۔"
+            actionLabel="+ نیا لین دین"
+            onAction={handleAdd}
+          />
+        )}
+
+        {/* ── Data table ── */}
+        {!loading && !error && transactions.length > 0 && (
+          <div className="overflow-x-auto rounded-2xl border border-[#E7E2D6] bg-white">
+            {/* Table header */}
             <div
-              key={`${row.desc}-${i}`}
-              className={`min-w-[800px] ${gridCols} hidden grid items-center gap-3.5 px-5 py-[15px] text-[15px] hover:bg-[#FBF9F4] md:grid ${i < tableRows.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
+              className={`hidden min-w-[800px] ${gridCols} grid gap-3.5 border-b border-[#E7E2D6] bg-[#FBF9F4] px-5 py-3.5 font-[var(--font-manrope)] text-[11px] tracking-[.12em] text-[#8A9690] md:grid`}
             >
-              <span className="text-[14px] text-[#6B7A70]">{row.date}</span>
-              <span>{row.desc}</span>
-              <span className="text-[#4C5A52]">{row.cat}</span>
-              <span
-                className="justify-self-start rounded-full px-2.5 py-1 text-[12px]"
-                style={{ background: row.srcBg, color: row.srcFg }}
-              >
-                {row.source}
-              </span>
-              <span
-                className={`font-[var(--font-manrope)] font-semibold ${row.type === "income" ? "text-[#0F5132]" : ""}`}
-              >
-                {row.type === "income" ? "+" : "−"} Rs. {row.amount}
-              </span>
-              <span className="flex gap-3 text-[14px]">
-                <button className="text-[#0F5132]">تبدیلی</button>
-                <button className="text-[#B3261E]">حذف</button>
-              </span>
+              <span>تاریخ</span>
+              <span>تفصیل</span>
+              <span>زمرہ</span>
+              <span>ذریعہ</span>
+              <span>رقم</span>
+              <span></span>
             </div>
-          ))}
-          {/* Mobile card layout */}
-          <div className="flex flex-col md:hidden">
-            {tableRows.map((row, i) => (
+            {/* Table rows */}
+            {transactions.map((tx, i) => (
               <div
-                key={`m-${row.desc}-${i}`}
-                className={`flex items-center gap-3.5 px-4 py-3 ${i < tableRows.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
+                key={tx.id}
+                className={`hidden min-w-[800px] ${gridCols} grid items-center gap-3.5 px-5 py-[15px] text-[15px] hover:bg-[#FBF9F4] md:grid ${i < transactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
               >
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-medium">{row.desc}</span>
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[11px]"
-                      style={{ background: row.srcBg, color: row.srcFg }}
-                    >
-                      {row.source}
-                    </span>
-                  </div>
-                  <span className="text-[12px] text-[#8A9690]">
-                    {row.date} · {row.cat}
-                  </span>
-                </div>
+                <span className="text-[14px] text-[#6B7A70]">
+                  {formatDate(tx.date)}
+                </span>
+                <span>{tx.descriptionUr ?? tx.description ?? "—"}</span>
+                <span className="text-[#4C5A52]">
+                  {getCategoryName(tx.categoryId)}
+                </span>
+                <span className="justify-self-start rounded-full bg-[#F1EEE4] px-2.5 py-1 text-[12px] text-[#6B7A70]">
+                  {tx.source === "manual"
+                    ? "دستی"
+                    : tx.source === "conversational"
+                      ? "معاون"
+                      : tx.source === "voice"
+                        ? "آواز"
+                        : tx.source === "receipt"
+                          ? "رسید"
+                          : "درآمد"}
+                </span>
                 <span
-                  className={`font-[var(--font-manrope)] text-[15px] font-semibold ${row.type === "income" ? "text-[#0F5132]" : ""}`}
+                  className={`font-[var(--font-manrope)] font-semibold ${tx.type === "income" ? "text-[#0F5132]" : ""}`}
                 >
-                  {row.type === "income" ? "+" : "−"} Rs. {row.amount}
+                  {tx.type === "income" ? "+" : "−"} {pkr(tx.amount)}
+                </span>
+                <span className="flex gap-3 text-[14px]">
+                  <button
+                    onClick={() => handleEdit(tx)}
+                    className="text-[#0F5132]"
+                  >
+                    تبدیلی
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tx)}
+                    className="text-[#B3261E]"
+                  >
+                    حذف
+                  </button>
                 </span>
               </div>
             ))}
-          </div>
-          {/* Pagination */}
-          <div className="flex min-w-[800px] items-center justify-between border-t border-[#E7E2D6] bg-[#FBF9F4] px-5 py-3.5">
-            <span className="text-[14px] text-[#6B7A70]">1–20 از 41</span>
-            <div className="flex gap-2">
-              <span className="rounded-[8px] border border-[#DCD6C8] bg-[#0F5132] px-3 py-[7px] font-[var(--font-manrope)] text-[13px] text-white">
-                1
-              </span>
-              <span className="rounded-[8px] border border-[#DCD6C8] px-3 py-[7px] font-[var(--font-manrope)] text-[13px]">
-                2
-              </span>
-              <span className="rounded-[8px] border border-[#DCD6C8] px-3 py-[7px] font-[var(--font-manrope)] text-[13px]">
-                3
-              </span>
-              <span className="rounded-[8px] border border-[#DCD6C8] px-3 py-[7px] text-[13px]">
-                اگلا →
-              </span>
+            {/* Mobile card layout */}
+            <div className="flex flex-col md:hidden">
+              {transactions.map((tx, i) => (
+                <div
+                  key={`m-${tx.id}`}
+                  className={`flex items-center gap-3.5 px-4 py-3 ${i < transactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-medium">
+                        {tx.descriptionUr ?? tx.description ?? "—"}
+                      </span>
+                      <span className="rounded-full bg-[#F1EEE4] px-2 py-0.5 text-[11px] text-[#6B7A70]">
+                        {tx.source === "manual" ? "دستی" : tx.source}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] text-[#8A9690]">
+                        {formatDate(tx.date)} · {getCategoryName(tx.categoryId)}
+                      </span>
+                      <button
+                        onClick={() => handleEdit(tx)}
+                        className="text-[12px] text-[#0F5132]"
+                      >
+                        تبدیلی
+                      </button>
+                      <button
+                        onClick={() => handleDelete(tx)}
+                        className="text-[12px] text-[#B3261E]"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                  <span
+                    className={`font-[var(--font-manrope)] text-[15px] font-semibold ${tx.type === "income" ? "text-[#0F5132]" : ""}`}
+                  >
+                    {tx.type === "income" ? "+" : "−"} {pkr(tx.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-
-        {/* Empty state + Duplicate guard */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="flex flex-col items-start gap-2.5 rounded-2xl border border-dashed border-[#CBD9CF] bg-white p-[26px]">
-            <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#8A9690]">
-              EMPTY STATE
-            </span>
-            <h3 className="text-[18px] font-bold">
-              اس فلٹر پر کوئی لین دین نہیں ملا
-            </h3>
-            <p className="text-[14px] leading-[2] text-[#6B7A70]">
-              تاریخ یا زمرہ تبدیل کریں، یا معاون سے کہیں: &quot;جولائی کے سفر کے
-              اخراجات دکھاؤ&quot;۔
-            </p>
-            <button className="rounded-[9px] border-0 bg-[#F1EEE4] px-4 py-2.5 text-[14px]">
-              فلٹر صاف کریں
-            </button>
-          </div>
-          <div className="flex flex-col items-start gap-2.5 rounded-2xl border border-[#E7E2D6] bg-white p-[26px]">
-            <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#B3261E]">
-              DUPLICATE GUARD
-            </span>
-            <h3 className="text-[18px] font-bold">ممکنہ دہرا اندراج</h3>
-            <p className="text-[14px] leading-[2] text-[#6B7A70]">
-              آج ہی Rs. 850 پیٹرول کا اندراج موجود ہے۔ کیا یہ الگ خرچ ہے؟
-            </p>
-            <div className="flex gap-2">
-              <button className="rounded-[9px] border-0 bg-[#0F5132] px-4 py-2.5 text-[14px] text-white">
-                جی، الگ ہے
-              </button>
-              <button className="rounded-[9px] border-0 bg-[#F1EEE4] px-4 py-2.5 text-[14px]">
-                چھوڑ دیں
-              </button>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* ── Add / Edit Transaction Dialog ── */}
+      <TransactionFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        initialData={editData}
+        onSubmit={handleFormSubmit}
+      />
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        transactionDescription={deleteTarget?.desc}
+        transactionAmount={deleteTarget?.amount}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

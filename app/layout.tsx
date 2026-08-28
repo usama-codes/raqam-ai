@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import {
   Geist,
   Geist_Mono,
@@ -54,7 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-[var(--font-noto-naskh-arabic)] bg-[#F7F4EC] text-[#14231B]">
-        {children}
+        <ClerkProvider appearance={shadcn}>{children}</ClerkProvider>
       </body>
     </html>
   );

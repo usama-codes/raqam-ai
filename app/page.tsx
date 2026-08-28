@@ -1,7 +1,14 @@
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export default function RootPage() {
-  // Redirect authenticated users to dashboard, others to login
-  // Auth check will be implemented in Phase 3
-  redirect("/dashboard");
+export default async function RootPage() {
+  const { userId } = await auth();
+
+  if (userId) {
+    // Authenticated — send to dashboard
+    redirect("/dashboard");
+  }
+
+  // Not authenticated — send to login
+  redirect("/login");
 }
