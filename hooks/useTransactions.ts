@@ -55,6 +55,20 @@ export interface UpdateTransactionInput extends CreateTransactionInput {
   id: string;
 }
 
+/** Optional filters accepted by `useTransactions`. */
+export interface TransactionFilters {
+  /** Only include transactions on/after this date (Unix ms) */
+  dateFrom?: number;
+  /** Only include transactions before this date (Unix ms) */
+  dateTo?: number;
+  /** Filter by transaction type */
+  type?: TransactionType;
+  /** Filter by one or more category IDs */
+  categoryIds?: string[];
+  /** Full-text search on description / descriptionUr */
+  search?: string;
+}
+
 // ─── Hook return type ────────────────────────────────────────────────────────────
 
 export interface UseTransactionsReturn {
@@ -66,38 +80,38 @@ export interface UseTransactionsReturn {
   deleteTransaction: (id: string) => Promise<void>;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────────
+// ─── Hook (Phase 5: optional filters, all transactions by default) ───────────────
 
-function getFirstOfMonth(): number {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-}
-
-function getFirstOfNextMonth(): number {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
-}
-
-// ─── Hook (Phase 4: wired to Convex) ─────────────────────────────────────────────
-
-export function useTransactions(): UseTransactionsReturn {
-  const monthStart = getFirstOfMonth();
-  const monthEnd = getFirstOfNextMonth();
-  // Explicit cast avoids IDE failure to resolve the deep FilterApi generic chain
-  // in the generated api.d.ts (tsc resolves correctly, but IDE TS server may not).
+export function useTransactions(
+  filters?: TransactionFilters,
+): UseTransactionsReturn {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const typedApi = api as any;
-  const rawTransactions = useQuery(typedApi.transactions.list, {
-    dateFrom: monthStart,
-    dateTo: monthEnd,
-  });
+
+  const filterDateFrom = filters?.dateFrom;
+  const filterDateTo = filters?.dateTo;
+
+  // Pass date range to Convex only when explicitly provided; otherwise fetch all.
+  const queryParams = React.useMemo(() => {
+    const params: Record<string, unknown> = {};
+    if (filterDateFrom !== undefined) params.dateFrom = filterDateFrom;
+    if (filterDateTo !== undefined) params.dateTo = filterDateTo;
+    return params;
+  }, [filterDateFrom, filterDateTo]);
+
+  const rawTransactions = useQuery(typedApi.transactions.list, queryParams);
   const create = useMutation(typedApi.transactions.create);
   const update = useMutation(typedApi.transactions.update);
   const remove = useMutation(typedApi.transactions.remove);
 
+  const filterType = filters?.type;
+  const filterCategoryIds = filters?.categoryIds;
+  const filterSearch = filters?.search;
+
   const transactions: Transaction[] = React.useMemo(() => {
     if (!rawTransactions) return [];
-    return (rawTransactions as RawTransactionDoc[]).map((t) => ({
+
+    let mapped = (rawTransactions as RawTransactionDoc[]).map((t) => ({
       id: t._id,
       type: t.type,
       amount: t.amount,
@@ -110,7 +124,28 @@ export function useTransactions(): UseTransactionsReturn {
       isRecurring: t.isRecurring,
       pendingConfirmation: t.pendingConfirmation,
     }));
-  }, [rawTransactions]);
+
+    // Client-side filters ───────────────────────────────────────────────────────
+    if (filterType) {
+      mapped = mapped.filter((t) => t.type === filterType);
+    }
+
+    if (filterCategoryIds && filterCategoryIds.length > 0) {
+      const idSet = new Set(filterCategoryIds);
+      mapped = mapped.filter((t) => idSet.has(t.categoryId));
+    }
+
+    if (filterSearch && filterSearch.trim()) {
+      const needle = filterSearch.trim().toLowerCase();
+      mapped = mapped.filter((t) => {
+        const desc = (t.description ?? "").toLowerCase();
+        const descUr = (t.descriptionUr ?? "").toLowerCase();
+        return desc.includes(needle) || descUr.includes(needle);
+      });
+    }
+
+    return mapped;
+  }, [rawTransactions, filterType, filterCategoryIds, filterSearch]);
 
   const createTransaction = React.useCallback(
     async (input: CreateTransactionInput) => {

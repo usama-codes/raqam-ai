@@ -7,13 +7,20 @@ import {
   type TransactionFormData,
 } from "@/components/transactions/TransactionFormDialog";
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
-import { useTransactions, type Transaction } from "@/hooks/useTransactions";
+import {
+  useTransactions,
+  type Transaction,
+  type TransactionType,
+  type TransactionFilters,
+} from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
 import {
   ListSkeleton,
   EmptyState,
   ErrorState,
 } from "@/components/shared/DataStates";
+
+const PAGE_SIZE = 20;
 
 const gridCols =
   "grid-cols-[100px_minmax(150px,1.6fr)_minmax(120px,1fr)_110px_120px_90px]";
@@ -32,6 +39,45 @@ function formatDate(ms: number): string {
 }
 
 export default function TransactionsPage() {
+  /* ── Filter state ── */
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const [typeFilter, setTypeFilter] = React.useState<"all" | TransactionType>(
+    "all",
+  );
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
+    [],
+  );
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const [showCategoryPicker, setShowCategoryPicker] = React.useState(false);
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
+
+  /* ── Debounce search ── */
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  /* ── Build filter object ── */
+  const filters = React.useMemo<TransactionFilters>(() => {
+    const f: TransactionFilters = {};
+    if (debouncedSearch) f.search = debouncedSearch;
+    if (typeFilter !== "all") f.type = typeFilter;
+    if (selectedCategories.length > 0) f.categoryIds = selectedCategories;
+    if (dateFrom) f.dateFrom = new Date(dateFrom).getTime();
+    if (dateTo) f.dateTo = new Date(dateTo).getTime() + 86_400_000; // inclusive end of day
+    return f;
+  }, [debouncedSearch, typeFilter, selectedCategories, dateFrom, dateTo]);
+
+  /* ── Reset pagination when filters change (derived state pattern) ── */
+  const filterKey = `${debouncedSearch}|${typeFilter}|${selectedCategories.join(",")}|${dateFrom}|${dateTo}`;
+  const [prevFilterKey, setPrevFilterKey] = React.useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(PAGE_SIZE);
+  }
+
   const {
     transactions,
     loading,
@@ -39,7 +85,7 @@ export default function TransactionsPage() {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-  } = useTransactions();
+  } = useTransactions(filters);
   const { categories } = useCategories();
 
   /* ── Dialog state ── */
@@ -54,11 +100,40 @@ export default function TransactionsPage() {
     amount: string;
   } | null>(null);
 
+  /* ── Helpers ── */
   const getCategoryName = (catId: string): string => {
     const cat = categories.find((c) => c.id === catId || c.name === catId);
     return cat?.nameUr ?? catId;
   };
 
+  const hasActiveFilters =
+    typeFilter !== "all" ||
+    selectedCategories.length > 0 ||
+    !!debouncedSearch ||
+    !!dateFrom ||
+    !!dateTo;
+
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setTypeFilter("all");
+    setSelectedCategories([]);
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const toggleCategory = (catId: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(catId)
+        ? prev.filter((id) => id !== catId)
+        : [...prev, catId],
+    );
+  };
+
+  const visibleTransactions = transactions.slice(0, visibleCount);
+  const hasMore = transactions.length > visibleCount;
+
+  /* ── CRUD handlers ── */
   const handleAdd = () => {
     setEditData(undefined);
     setEditId(null);
@@ -131,7 +206,7 @@ export default function TransactionsPage() {
           <h1 className="text-[26px] font-bold leading-[1.7]">لین دین</h1>
           <p className="text-[14px] text-[#6B7A70]">
             {transactions.length > 0
-              ? `${transactions.length} اندراج · نئے پہلے`
+              ? `${transactions.length} اندراج${hasMore ? ` · ${visibleCount} دکھائے گئے` : ""}`
               : "کوئی اندراج نہیں"}
           </p>
         </div>
@@ -154,25 +229,156 @@ export default function TransactionsPage() {
       {/* ── Content ── */}
       <div className="flex flex-col gap-[18px] px-6 pb-12 pt-6 sm:px-10">
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[#E7E2D6] bg-white p-4 px-[18px]">
-          <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 py-2.5">
-            <span className="text-[#8A9690]">⌕</span>
-            <span className="text-[14px] text-[#9BA79F]">
-              تفصیل میں تلاش کریں…
-            </span>
+        <div className="flex flex-col gap-3 rounded-[14px] border border-[#E7E2D6] bg-white p-4 px-[18px]">
+          {/* Row 1: Search + type toggle + clear */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search input */}
+            <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 py-2.5">
+              <span className="text-[#8A9690]">⌕</span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="تفصیل میں تلاش کریں…"
+                className="flex-1 bg-transparent text-[14px] text-[#14231B] placeholder:text-[#9BA79F] focus:outline-none"
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setDebouncedSearch("");
+                  }}
+                  className="text-[12px] text-[#8A9690] hover:text-[#4C5A52]"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Type toggle */}
+            <div className="flex overflow-hidden rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4]">
+              <button
+                onClick={() => setTypeFilter("all")}
+                className={`px-3.5 py-2.5 text-[14px] ${typeFilter === "all" ? "bg-[#0F5132] text-white" : ""}`}
+              >
+                سب
+              </button>
+              <button
+                onClick={() =>
+                  setTypeFilter(typeFilter === "expense" ? "all" : "expense")
+                }
+                className={`border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px] ${typeFilter === "expense" ? "bg-[#B3261E] text-white" : ""}`}
+              >
+                خرچ
+              </button>
+              <button
+                onClick={() =>
+                  setTypeFilter(typeFilter === "income" ? "all" : "income")
+                }
+                className={`border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px] ${typeFilter === "income" ? "bg-[#0F5132] text-white" : ""}`}
+              >
+                آمدنی
+              </button>
+            </div>
+
+            {/* Category filter button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+                className={`rounded-[10px] border px-3.5 py-2.5 text-[14px] ${
+                  selectedCategories.length > 0
+                    ? "border-[#0F5132] bg-[#E6EFE9] text-[#0F5132]"
+                    : "border-[#DCD6C8] bg-[#FBF9F4]"
+                }`}
+              >
+                زمرہ
+                {selectedCategories.length > 0 && (
+                  <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0F5132] text-[11px] text-white">
+                    {selectedCategories.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Category dropdown */}
+              {showCategoryPicker && (
+                <div className="absolute top-full right-0 z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-[10px] border border-[#E7E2D6] bg-white p-2 shadow-lg">
+                  {categories
+                    .filter(
+                      (c) =>
+                        !c.isSystem ||
+                        c.type === "expense" ||
+                        c.type === "both",
+                    )
+                    .map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCategory(cat.id)}
+                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[13px] ${
+                          selectedCategories.includes(cat.id)
+                            ? "bg-[#E6EFE9] text-[#0F5132]"
+                            : "hover:bg-[#FBF9F4]"
+                        }`}
+                      >
+                        <span>{cat.icon}</span>
+                        <span className="flex-1">{cat.nameUr}</span>
+                        {selectedCategories.includes(cat.id) && (
+                          <span className="text-[#0F5132]">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  {selectedCategories.length > 0 && (
+                    <button
+                      onClick={() => setSelectedCategories([])}
+                      className="mt-1 w-full rounded-lg border-t border-[#E7E2D6] px-3 py-2 text-center text-[12px] text-[#B3261E]"
+                    >
+                      سب صاف کریں
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Clear filters */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-[14px] text-[#B3261E] hover:underline"
+              >
+                فلٹر ہٹائیں
+              </button>
+            )}
           </div>
-          <div className="flex overflow-hidden rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4]">
-            <span className="bg-[#0F5132] px-3.5 py-2.5 text-[14px] text-white">
-              سب
-            </span>
-            <span className="border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px]">
-              خرچ
-            </span>
-            <span className="border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px]">
-              آمدنی
-            </span>
+
+          {/* Row 2: Date range */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[13px] text-[#6B7A70]">تاریخ:</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 rounded-[8px] border border-[#DCD6C8] bg-[#FBF9F4] px-2.5 text-[13px] focus:border-[#0F5132] focus:outline-none"
+              dir="ltr"
+            />
+            <span className="text-[13px] text-[#8A9690]">سے</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 rounded-[8px] border border-[#DCD6C8] bg-[#FBF9F4] px-2.5 text-[13px] focus:border-[#0F5132] focus:outline-none"
+              dir="ltr"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="text-[12px] text-[#8A9690] hover:text-[#4C5A52]"
+              >
+                تاریخ صاف کریں
+              </button>
+            )}
           </div>
-          <button className="text-[14px] text-[#0F5132]">فلٹر ہٹائیں</button>
         </div>
 
         {/* ── Loading ── */}
@@ -189,10 +395,14 @@ export default function TransactionsPage() {
         {!loading && !error && transactions.length === 0 && (
           <EmptyState
             icon="💸"
-            title="کوئی لین دین نہیں"
-            description="ابھی تک کوئی لین دین درج نہیں ہوا۔ اپنا پہلا لین دین شامل کریں یا بینک اسٹیٹمنٹ درآمد کریں۔"
-            actionLabel="+ نیا لین دین"
-            onAction={handleAdd}
+            title={hasActiveFilters ? "کوئی نتیجہ نہیں" : "کوئی لین دین نہیں"}
+            description={
+              hasActiveFilters
+                ? "آپ کے فلٹرز سے کوئی لین دین نہیں مل رہا۔ فلٹر تبدیل کر کے دوبارہ کوشش کریں۔"
+                : "ابھی تک کوئی لین دین درج نہیں ہوا۔ اپنا پہلا لین دین شامل کریں یا بینک اسٹیٹمنٹ درآمد کریں۔"
+            }
+            actionLabel={hasActiveFilters ? "فلٹر ہٹائیں" : "+ نیا لین دین"}
+            onAction={hasActiveFilters ? clearFilters : handleAdd}
           />
         )}
 
@@ -211,10 +421,10 @@ export default function TransactionsPage() {
               <span></span>
             </div>
             {/* Table rows */}
-            {transactions.map((tx, i) => (
+            {visibleTransactions.map((tx, i) => (
               <div
                 key={tx.id}
-                className={`hidden min-w-[800px] ${gridCols} grid items-center gap-3.5 px-5 py-[15px] text-[15px] hover:bg-[#FBF9F4] md:grid ${i < transactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
+                className={`hidden min-w-[800px] ${gridCols} grid items-center gap-3.5 px-5 py-[15px] text-[15px] hover:bg-[#FBF9F4] md:grid ${i < visibleTransactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
               >
                 <span className="text-[14px] text-[#6B7A70]">
                   {formatDate(tx.date)}
@@ -257,10 +467,10 @@ export default function TransactionsPage() {
             ))}
             {/* Mobile card layout */}
             <div className="flex flex-col md:hidden">
-              {transactions.map((tx, i) => (
+              {visibleTransactions.map((tx, i) => (
                 <div
                   key={`m-${tx.id}`}
-                  className={`flex items-center gap-3.5 px-4 py-3 ${i < transactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
+                  className={`flex items-center gap-3.5 px-4 py-3 ${i < visibleTransactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <div className="flex items-center gap-2">
@@ -297,9 +507,29 @@ export default function TransactionsPage() {
                 </div>
               ))}
             </div>
+
+            {/* Load more */}
+            {hasMore && (
+              <div className="border-t border-[#E7E2D6] py-3 text-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="rounded-[10px] border border-[#DCD6C8] bg-white px-6 py-2.5 text-[14px] text-[#0F5132] hover:bg-[#FBF9F4]"
+                >
+                  مزید دکھائیں ({transactions.length - visibleCount} باقی)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* ── Close category picker on outside click ── */}
+      {showCategoryPicker && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setShowCategoryPicker(false)}
+        />
+      )}
 
       {/* ── Add / Edit Transaction Dialog ── */}
       <TransactionFormDialog

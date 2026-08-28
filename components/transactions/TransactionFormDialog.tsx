@@ -214,13 +214,29 @@ function TransactionFormInner({
             <SelectTrigger
               className={`h-10 w-full rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 text-[14px] ${errors.categoryId ? "border-[#B3261E]" : ""}`}
             >
-              <SelectValue placeholder="زمرہ منتخب کریں" />
+              <SelectValue placeholder="زمرہ منتخب کریں">
+                {(() => {
+                  if (!form.categoryId) return undefined;
+                  const selected = allCategories.find(
+                    (c) => c.id === form.categoryId,
+                  );
+                  if (!selected) return form.categoryId;
+                  return (
+                    <span className="flex items-center gap-2">
+                      <span>{selected.icon}</span>
+                      <span>{selected.nameUr}</span>
+                    </span>
+                  );
+                })()}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent className="bg-white">
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
-                  <span>{cat.icon}</span>
-                  <span>{cat.nameUr}</span>
+                  <span className="flex items-center gap-2">
+                    <span>{cat.icon}</span>
+                    <span>{cat.nameUr}</span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
