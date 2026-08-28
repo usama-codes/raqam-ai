@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Naskh_Arabic } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Manrope,
+  Noto_Naskh_Arabic,
+  Noto_Nastaliq_Urdu,
+} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +21,21 @@ const geistMono = Geist_Mono({
 const notoNaskhArabic = Noto_Naskh_Arabic({
   variable: "--font-noto-naskh-arabic",
   subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
+  variable: "--font-noto-nastaliq-urdu",
+  subsets: ["arabic"],
+  weight: ["400", "700"],
   display: "swap",
 });
 
@@ -29,10 +50,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ur"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-[var(--font-noto-naskh-arabic)]">
+      <body className="min-h-full flex flex-col font-[var(--font-noto-naskh-arabic)] bg-[#F7F4EC] text-[#14231B]">
         {children}
       </body>
     </html>

@@ -38,6 +38,8 @@ next-env.d.ts
 # convex auto-generated
 convex/_generated/
 
+Raqam-AI Financial Dashboard Design
+
 # shadcn/ui generated components (re-installable via npx shadcn)
 # Uncomment if you want to exclude them from version control:
 # components/ui/
