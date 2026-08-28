@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // ─── Loading Skeleton ────────────────────────────────────────────────────────────
 
@@ -160,19 +161,20 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#E7D6D4] bg-white px-6 py-12 text-center">
       <span className="text-[40px]">⚠️</span>
-      <h3 className="text-[18px] font-bold">کچھ غلط ہو گیا</h3>
+      <h3 className="text-[18px] font-bold">{t("common.errorTitle")}</h3>
       <p className="max-w-sm text-[14px] leading-[2] text-[#6B7A70]">
-        {message ?? "ڈیٹا لوڈ کرنے میں مسئلہ ہوا۔ براہ کرم دوبارہ کوشش کریں۔"}
+        {message ?? t("common.errorDefault")}
       </p>
       {onRetry && (
         <button
           onClick={onRetry}
           className="rounded-[10px] border-0 bg-[#0F5132] px-5 py-2.5 text-[14px] text-white hover:bg-[#14231B]"
         >
-          دوبارہ کوشش کریں
+          {t("common.retry")}
         </button>
       )}
     </div>

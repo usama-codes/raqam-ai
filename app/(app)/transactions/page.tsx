@@ -16,6 +16,7 @@ import {
 import { useCategories } from "@/hooks/useCategories";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useToast } from "@/components/shared/Toast";
+import { useLanguage } from "@/components/LanguageProvider";
 import {
   ListSkeleton,
   EmptyState,
@@ -31,13 +32,18 @@ function pkr(n: number) {
   return `Rs. ${n.toLocaleString()}`;
 }
 
-function formatDate(ms: number): string {
+function formatDateLocal(ms: number, locale: "ur" | "en"): string {
   const d = new Date(ms);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
-  if (diffDays === 0) return "آج";
-  if (diffDays === 1) return "کل";
-  return d.toLocaleDateString("ur-PK", { day: "numeric", month: "short" });
+  if (locale === "ur") {
+    if (diffDays === 0) return "آج";
+    if (diffDays === 1) return "کل";
+    return d.toLocaleDateString("ur-PK", { day: "numeric", month: "short" });
+  }
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return d.toLocaleDateString("en-PK", { day: "numeric", month: "short" });
 }
 
 export default function TransactionsPage() {
@@ -55,6 +61,8 @@ export default function TransactionsPage() {
   const [showCategoryPicker, setShowCategoryPicker] = React.useState(false);
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
 
+  const { t, language } = useLanguage();
+
   /* ── Debounce search ── */
   React.useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -68,11 +76,11 @@ export default function TransactionsPage() {
     if (typeFilter !== "all") f.type = typeFilter;
     if (selectedCategories.length > 0) f.categoryIds = selectedCategories;
     if (dateFrom) f.dateFrom = new Date(dateFrom).getTime();
-    if (dateTo) f.dateTo = new Date(dateTo).getTime() + 86_400_000; // inclusive end of day
+    if (dateTo) f.dateTo = new Date(dateTo).getTime() + 86_400_000;
     return f;
   }, [debouncedSearch, typeFilter, selectedCategories, dateFrom, dateTo]);
 
-  /* ── Reset pagination when filters change (derived state pattern) ── */
+  /* ── Reset pagination when filters change ── */
   const filterKey = `${debouncedSearch}|${typeFilter}|${selectedCategories.join(",")}|${dateFrom}|${dateTo}`;
   const [prevFilterKey, setPrevFilterKey] = React.useState(filterKey);
   if (prevFilterKey !== filterKey) {
@@ -108,6 +116,21 @@ export default function TransactionsPage() {
   const getCategoryName = (catId: string): string => {
     const cat = categories.find((c) => c.id === catId || c.name === catId);
     return cat?.nameUr ?? catId;
+  };
+
+  const getSourceLabel = (source: string): string => {
+    switch (source) {
+      case "manual":
+        return t("transactions.sourceManual");
+      case "conversational":
+        return t("transactions.sourceConversational");
+      case "voice":
+        return t("transactions.sourceVoice");
+      case "receipt":
+        return t("transactions.sourceReceipt");
+      default:
+        return t("transactions.sourceImport");
+    }
   };
 
   const hasActiveFilters =
@@ -204,13 +227,13 @@ export default function TransactionsPage() {
         if (pct >= 100) {
           addToast({
             type: "error",
-            title: `${catName} بجٹ حد سے تجاوز!`,
+            title: `${catName} ${t("transactions.budgetExceeded")}`,
             description: `${pkr(projectedSpent)} / ${pkr(bc.limit)} (${pct}%)`,
           });
         } else if (pct >= 80) {
           addToast({
             type: "warning",
-            title: `${catName} بجٹ انتباہ`,
+            title: `${catName} ${t("transactions.budgetWarning")}`,
             description: `${pkr(projectedSpent)} / ${pkr(bc.limit)} (${pct}%)`,
           });
         }
@@ -231,11 +254,13 @@ export default function TransactionsPage() {
       {/* ── Header ── */}
       <header className="flex items-center justify-between gap-5 border-b border-[#E7E2D6] bg-white px-6 py-[26px] sm:px-10">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[26px] font-bold leading-[1.7]">لین دین</h1>
+          <h1 className="text-[26px] font-bold leading-[1.7]">
+            {t("transactions.title")}
+          </h1>
           <p className="text-[14px] text-[#6B7A70]">
             {transactions.length > 0
-              ? `${transactions.length} اندراج${hasMore ? ` · ${visibleCount} دکھائے گئے` : ""}`
-              : "کوئی اندراج نہیں"}
+              ? `${transactions.length} ${t("transactions.entries")}${hasMore ? ` · ${visibleCount} ${t("transactions.showing")}` : ""}`
+              : t("transactions.noEntries")}
           </p>
         </div>
         <div className="flex gap-2.5">
@@ -243,13 +268,13 @@ export default function TransactionsPage() {
             href="/import"
             className="hidden rounded-[10px] border border-[#DCD6C8] bg-white px-4 py-[11px] text-[14px] hover:bg-[#FBF9F4] sm:block"
           >
-            اسٹیٹمنٹ درآمد
+            {t("transactions.importStatement")}
           </Link>
           <button
             onClick={handleAdd}
             className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]"
           >
-            + نیا لین دین
+            {t("transactions.add")}
           </button>
         </div>
       </header>
@@ -267,7 +292,7 @@ export default function TransactionsPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="تفصیل میں تلاش کریں…"
+                placeholder={t("transactions.searchPlaceholder")}
                 className="flex-1 bg-transparent text-[14px] text-[#14231B] placeholder:text-[#9BA79F] focus:outline-none"
               />
               {search && (
@@ -289,7 +314,7 @@ export default function TransactionsPage() {
                 onClick={() => setTypeFilter("all")}
                 className={`px-3.5 py-2.5 text-[14px] ${typeFilter === "all" ? "bg-[#0F5132] text-white" : ""}`}
               >
-                سب
+                {t("transactions.all")}
               </button>
               <button
                 onClick={() =>
@@ -297,7 +322,7 @@ export default function TransactionsPage() {
                 }
                 className={`border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px] ${typeFilter === "expense" ? "bg-[#B3261E] text-white" : ""}`}
               >
-                خرچ
+                {t("transactions.expense")}
               </button>
               <button
                 onClick={() =>
@@ -305,7 +330,7 @@ export default function TransactionsPage() {
                 }
                 className={`border-r border-[#DCD6C8] px-3.5 py-2.5 text-[14px] ${typeFilter === "income" ? "bg-[#0F5132] text-white" : ""}`}
               >
-                آمدنی
+                {t("transactions.income")}
               </button>
             </div>
 
@@ -319,7 +344,7 @@ export default function TransactionsPage() {
                     : "border-[#DCD6C8] bg-[#FBF9F4]"
                 }`}
               >
-                زمرہ
+                {t("transactions.category")}
                 {selectedCategories.length > 0 && (
                   <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0F5132] text-[11px] text-white">
                     {selectedCategories.length}
@@ -359,7 +384,7 @@ export default function TransactionsPage() {
                       onClick={() => setSelectedCategories([])}
                       className="mt-1 w-full rounded-lg border-t border-[#E7E2D6] px-3 py-2 text-center text-[12px] text-[#B3261E]"
                     >
-                      سب صاف کریں
+                      {t("transactions.clearAll")}
                     </button>
                   )}
                 </div>
@@ -372,14 +397,16 @@ export default function TransactionsPage() {
                 onClick={clearFilters}
                 className="text-[14px] text-[#B3261E] hover:underline"
               >
-                فلٹر ہٹائیں
+                {t("transactions.removeFilters")}
               </button>
             )}
           </div>
 
           {/* Row 2: Date range */}
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[13px] text-[#6B7A70]">تاریخ:</span>
+            <span className="text-[13px] text-[#6B7A70]">
+              {t("transactions.dateLabel")}
+            </span>
             <input
               type="date"
               value={dateFrom}
@@ -387,7 +414,9 @@ export default function TransactionsPage() {
               className="h-9 rounded-[8px] border border-[#DCD6C8] bg-[#FBF9F4] px-2.5 text-[13px] focus:border-[#0F5132] focus:outline-none"
               dir="ltr"
             />
-            <span className="text-[13px] text-[#8A9690]">سے</span>
+            <span className="text-[13px] text-[#8A9690]">
+              {t("transactions.dateFrom")}
+            </span>
             <input
               type="date"
               value={dateTo}
@@ -403,7 +432,7 @@ export default function TransactionsPage() {
                 }}
                 className="text-[12px] text-[#8A9690] hover:text-[#4C5A52]"
               >
-                تاریخ صاف کریں
+                {t("transactions.clearDate")}
               </button>
             )}
           </div>
@@ -423,13 +452,21 @@ export default function TransactionsPage() {
         {!loading && !error && transactions.length === 0 && (
           <EmptyState
             icon="💸"
-            title={hasActiveFilters ? "کوئی نتیجہ نہیں" : "کوئی لین دین نہیں"}
+            title={
+              hasActiveFilters
+                ? t("transactions.noResults")
+                : t("transactions.emptyTitle")
+            }
             description={
               hasActiveFilters
-                ? "آپ کے فلٹرز سے کوئی لین دین نہیں مل رہا۔ فلٹر تبدیل کر کے دوبارہ کوشش کریں۔"
-                : "ابھی تک کوئی لین دین درج نہیں ہوا۔ اپنا پہلا لین دین شامل کریں یا بینک اسٹیٹمنٹ درآمد کریں۔"
+                ? t("transactions.noResultsDesc")
+                : t("transactions.emptyDesc")
             }
-            actionLabel={hasActiveFilters ? "فلٹر ہٹائیں" : "+ نیا لین دین"}
+            actionLabel={
+              hasActiveFilters
+                ? t("transactions.removeFilters")
+                : t("transactions.add")
+            }
             onAction={hasActiveFilters ? clearFilters : handleAdd}
           />
         )}
@@ -441,11 +478,11 @@ export default function TransactionsPage() {
             <div
               className={`hidden min-w-[800px] ${gridCols} grid gap-3.5 border-b border-[#E7E2D6] bg-[#FBF9F4] px-5 py-3.5 font-[var(--font-manrope)] text-[11px] tracking-[.12em] text-[#8A9690] md:grid`}
             >
-              <span>تاریخ</span>
-              <span>تفصیل</span>
-              <span>زمرہ</span>
-              <span>ذریعہ</span>
-              <span>رقم</span>
+              <span>{t("transactions.colDate")}</span>
+              <span>{t("transactions.colDescription")}</span>
+              <span>{t("transactions.colCategory")}</span>
+              <span>{t("transactions.colSource")}</span>
+              <span>{t("transactions.colAmount")}</span>
               <span></span>
             </div>
             {/* Table rows */}
@@ -455,22 +492,14 @@ export default function TransactionsPage() {
                 className={`hidden min-w-[800px] ${gridCols} grid items-center gap-3.5 px-5 py-[15px] text-[15px] hover:bg-[#FBF9F4] md:grid ${i < visibleTransactions.length - 1 ? "border-b border-[#F4F1E8]" : ""}`}
               >
                 <span className="text-[14px] text-[#6B7A70]">
-                  {formatDate(tx.date)}
+                  {formatDateLocal(tx.date, language)}
                 </span>
                 <span>{tx.descriptionUr ?? tx.description ?? "—"}</span>
                 <span className="text-[#4C5A52]">
                   {getCategoryName(tx.categoryId)}
                 </span>
                 <span className="justify-self-start rounded-full bg-[#F1EEE4] px-2.5 py-1 text-[12px] text-[#6B7A70]">
-                  {tx.source === "manual"
-                    ? "دستی"
-                    : tx.source === "conversational"
-                      ? "معاون"
-                      : tx.source === "voice"
-                        ? "آواز"
-                        : tx.source === "receipt"
-                          ? "رسید"
-                          : "درآمد"}
+                  {getSourceLabel(tx.source)}
                 </span>
                 <span
                   className={`font-[var(--font-manrope)] font-semibold ${tx.type === "income" ? "text-[#0F5132]" : ""}`}
@@ -482,13 +511,13 @@ export default function TransactionsPage() {
                     onClick={() => handleEdit(tx)}
                     className="text-[#0F5132]"
                   >
-                    تبدیلی
+                    {t("transactions.edit")}
                   </button>
                   <button
                     onClick={() => handleDelete(tx)}
                     className="text-[#B3261E]"
                   >
-                    حذف
+                    {t("transactions.delete")}
                   </button>
                 </span>
               </div>
@@ -506,24 +535,25 @@ export default function TransactionsPage() {
                         {tx.descriptionUr ?? tx.description ?? "—"}
                       </span>
                       <span className="rounded-full bg-[#F1EEE4] px-2 py-0.5 text-[11px] text-[#6B7A70]">
-                        {tx.source === "manual" ? "دستی" : tx.source}
+                        {getSourceLabel(tx.source)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[12px] text-[#8A9690]">
-                        {formatDate(tx.date)} · {getCategoryName(tx.categoryId)}
+                        {formatDateLocal(tx.date, language)} ·{" "}
+                        {getCategoryName(tx.categoryId)}
                       </span>
                       <button
                         onClick={() => handleEdit(tx)}
                         className="text-[12px] text-[#0F5132]"
                       >
-                        تبدیلی
+                        {t("transactions.edit")}
                       </button>
                       <button
                         onClick={() => handleDelete(tx)}
                         className="text-[12px] text-[#B3261E]"
                       >
-                        حذف
+                        {t("transactions.delete")}
                       </button>
                     </div>
                   </div>
@@ -543,7 +573,9 @@ export default function TransactionsPage() {
                   onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                   className="rounded-[10px] border border-[#DCD6C8] bg-white px-6 py-2.5 text-[14px] text-[#0F5132] hover:bg-[#FBF9F4]"
                 >
-                  مزید دکھائیں ({transactions.length - visibleCount} باقی)
+                  {t("transactions.loadMore")} (
+                  {transactions.length - visibleCount}{" "}
+                  {t("transactions.remaining")})
                 </button>
               </div>
             )}

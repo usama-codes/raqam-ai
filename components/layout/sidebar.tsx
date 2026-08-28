@@ -16,22 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-
-const pitchNav = [
-  { href: "/", label: "مسئلہ اور حل", en: "PITCH", icon: Rocket },
-];
-
-const appNav = [
-  { href: "/dashboard", label: "ڈیش بورڈ", en: "HOME", icon: LayoutDashboard },
-  { href: "/transactions", label: "لین دین", en: "TXNS", icon: ArrowLeftRight },
-  { href: "/budgets", label: "بجٹ", en: "BUDGET", icon: Wallet },
-  { href: "/goals", label: "بچت کے اہداف", en: "GOALS", icon: Target },
-  { href: "/assistant", label: "رقم معاون", en: "AI", icon: MessageSquare },
-  { href: "/import", label: "اسٹیٹمنٹ درآمد", en: "IMPORT", icon: Upload },
-  { href: "/settings", label: "ترتیبات", en: "SETTINGS", icon: Settings },
-];
-
-const mobileNav = appNav.slice(0, 5);
+import { useLanguage } from "@/components/LanguageProvider";
 
 function NavItem({
   href,
@@ -68,7 +53,12 @@ function NavSection({
   pathname,
 }: {
   title: string;
-  items: typeof appNav;
+  items: {
+    href: string;
+    label: string;
+    en: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[];
   pathname: string;
 }) {
   return (
@@ -92,8 +82,9 @@ function NavSection({
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
-  const displayName = user?.name || user?.username || "صارف";
+  const displayName = user?.name || user?.username || t("nav.userFallback");
   const displayContact = user?.email || user?.phone || user?.username || "";
   const initials = displayName
     .split(" ")
@@ -101,6 +92,42 @@ export function Sidebar() {
     .join("")
     .slice(0, 1)
     .toUpperCase();
+
+  const pitchNav = [
+    { href: "/", label: t("nav.pitch"), en: "PITCH", icon: Rocket },
+  ];
+
+  const appNav = [
+    {
+      href: "/dashboard",
+      label: t("nav.dashboard"),
+      en: "HOME",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/transactions",
+      label: t("nav.transactions"),
+      en: "TXNS",
+      icon: ArrowLeftRight,
+    },
+    { href: "/budgets", label: t("nav.budgets"), en: "BUDGET", icon: Wallet },
+    { href: "/goals", label: t("nav.goals"), en: "GOALS", icon: Target },
+    {
+      href: "/assistant",
+      label: t("nav.assistant"),
+      en: "AI",
+      icon: MessageSquare,
+    },
+    { href: "/import", label: t("nav.import"), en: "IMPORT", icon: Upload },
+    {
+      href: "/settings",
+      label: t("nav.settings"),
+      en: "SETTINGS",
+      icon: Settings,
+    },
+  ];
+
+  const mobileNav = appNav.slice(0, 5);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[268px] shrink-0 flex-col gap-7 overflow-y-auto bg-[#0B3B26] px-5 py-[26px] text-[#DCE7DF] lg:flex">
@@ -120,14 +147,22 @@ export function Sidebar() {
           </div>
         </div>
         <p className="mt-2 text-[13px] leading-[1.9] text-[#8FB49E]">
-          اردو بولنے والوں کے لیے مالی معاون
+          {t("nav.tagline")}
         </p>
       </div>
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-[22px] overflow-y-auto">
-        <NavSection title="PITCH" items={pitchNav} pathname={pathname} />
-        <NavSection title="PRODUCT" items={appNav} pathname={pathname} />
+        <NavSection
+          title={t("nav.sectionPitch")}
+          items={pitchNav}
+          pathname={pathname}
+        />
+        <NavSection
+          title={t("nav.sectionProduct")}
+          items={appNav}
+          pathname={pathname}
+        />
       </nav>
 
       {/* User profile */}
@@ -155,6 +190,19 @@ export function Sidebar() {
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const mobileNav = [
+    { href: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
+    {
+      href: "/transactions",
+      label: t("nav.transactions"),
+      icon: ArrowLeftRight,
+    },
+    { href: "/budgets", label: t("nav.budgets"), icon: Wallet },
+    { href: "/goals", label: t("nav.goals"), icon: Target },
+    { href: "/assistant", label: t("nav.assistant"), icon: MessageSquare },
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex h-16 items-center justify-around border-t border-[#E7E2D6] bg-white lg:hidden">

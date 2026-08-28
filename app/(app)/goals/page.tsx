@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useGoals } from "@/hooks/useGoals";
 import { useToast } from "@/components/shared/Toast";
+import { useLanguage } from "@/components/LanguageProvider";
 import {
   CardSkeleton,
   EmptyState,
@@ -50,8 +51,10 @@ export default function GoalsPage() {
     deleteGoal,
   } = useGoals();
   const { addToast } = useToast();
+  const { t, language } = useLanguage();
 
   const totalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
+  const dateLocale = language === "ur" ? "ur-PK" : "en-PK";
 
   /* ── Goal create/edit dialog state ── */
   const [goalDialogOpen, setGoalDialogOpen] = React.useState(false);
@@ -92,10 +95,10 @@ export default function GoalsPage() {
 
   const handleSaveGoal = async () => {
     const errs: Record<string, string> = {};
-    if (!goalName.trim()) errs.name = "ہدف کا نام درج کریں";
+    if (!goalName.trim()) errs.name = t("goals.dialog.errorName");
     const parsed = parseFloat(goalTarget);
     if (!goalTarget || isNaN(parsed) || parsed <= 0)
-      errs.target = "درست رقم درج کریں";
+      errs.target = t("goals.dialog.errorAmount");
     if (Object.keys(errs).length > 0) {
       setGoalErrors(errs);
       return;
@@ -111,7 +114,7 @@ export default function GoalsPage() {
           targetAmount: parsed,
           targetDate,
         });
-        addToast({ type: "success", title: "ہدف اپ ڈیٹ ہو گیا" });
+        addToast({ type: "success", title: t("goals.toast.updated") });
       } else {
         await createGoal({
           name: goalName.trim(),
@@ -119,11 +122,11 @@ export default function GoalsPage() {
           targetAmount: parsed,
           targetDate,
         });
-        addToast({ type: "success", title: "نیا ہدف بن گیا" });
+        addToast({ type: "success", title: t("goals.toast.created") });
       }
       setGoalDialogOpen(false);
     } catch {
-      addToast({ type: "error", title: "خرابی آئی۔ دوبارہ کوشش کریں۔" });
+      addToast({ type: "error", title: t("goals.toast.error") });
     } finally {
       setGoalSubmitting(false);
     }
@@ -140,9 +143,9 @@ export default function GoalsPage() {
     if (!deleteGoalTarget) return;
     try {
       await deleteGoal(deleteGoalTarget.id);
-      addToast({ type: "success", title: "ہدف حذف ہو گیا" });
+      addToast({ type: "success", title: t("goals.toast.deleted") });
     } catch {
-      addToast({ type: "error", title: "خرابی آئی۔" });
+      addToast({ type: "error", title: t("goals.toast.errorGeneric") });
     }
     setDeleteGoalOpen(false);
     setDeleteGoalTarget(null);
@@ -182,7 +185,7 @@ export default function GoalsPage() {
     if (!activeGoal) return;
     const parsed = parseFloat(amount);
     if (isNaN(parsed) || parsed <= 0) {
-      setContributeError("براہ کرم درست رقم درج کریں۔");
+      setContributeError(t("goals.contribute.error"));
       return;
     }
     setContributing(true);
@@ -190,9 +193,9 @@ export default function GoalsPage() {
     try {
       await contributeToGoal(activeGoal.id, parsed);
       setContributeOpen(false);
-      addToast({ type: "success", title: "رقم جمع ہو گئی" });
+      addToast({ type: "success", title: t("goals.toast.contributed") });
     } catch {
-      setContributeError("خرابی آئی۔ دوبارہ کوشش کریں۔");
+      setContributeError(t("goals.toast.error"));
     } finally {
       setContributing(false);
     }
@@ -202,18 +205,20 @@ export default function GoalsPage() {
     <div className="flex flex-col">
       <header className="flex items-center justify-between gap-5 border-b border-[#E7E2D6] bg-white px-6 py-[26px] sm:px-10">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[26px] font-bold leading-[1.7]">بچت کے اہداف</h1>
+          <h1 className="text-[26px] font-bold leading-[1.7]">
+            {t("goals.title")}
+          </h1>
           <p className="text-[14px] text-[#6B7A70]">
             {goals.length > 0
-              ? `${goals.filter((g) => !g.isCompleted).length} فعال ہدف · کل جمع ${pkr(totalSaved)}`
-              : "کوئی ہدف مقرر نہیں"}
+              ? `${goals.filter((g) => !g.isCompleted).length} ${t("goals.active")} · ${t("goals.totalSaved")} ${pkr(totalSaved)}`
+              : t("goals.noGoalSet")}
           </p>
         </div>
         <button
           onClick={openCreateGoal}
           className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]"
         >
-          + نیا ہدف
+          {t("goals.add")}
         </button>
       </header>
 
@@ -234,9 +239,9 @@ export default function GoalsPage() {
         {!loading && !error && goals.length === 0 && (
           <EmptyState
             icon="🎯"
-            title="کوئی بچت کا ہدف نہیں"
-            description="اپنا پہلا بچت کا ہدف بنائیں — مثلاً ایمرجنسی فنڈ، عمرہ، یا کوئی بڑی خریداری۔"
-            actionLabel="+ نیا ہدف"
+            title={t("goals.emptyTitle")}
+            description={t("goals.emptyDesc")}
+            actionLabel={t("goals.add")}
             onAction={openCreateGoal}
           />
         )}
@@ -279,7 +284,7 @@ export default function GoalsPage() {
                         className="rounded-full px-2.5 py-1 font-[var(--font-manrope)] text-[12px]"
                         style={{ background: badgeBg, color: badgeFg }}
                       >
-                        {g.isCompleted ? "مکمل" : `${pct}%`}
+                        {g.isCompleted ? t("goals.completed") : `${pct}%`}
                       </span>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -299,17 +304,19 @@ export default function GoalsPage() {
                     </div>
                     <div className="flex flex-col gap-[7px] text-[14px] text-[#4C5A52]">
                       <div className="flex justify-between">
-                        <span className="text-[#6B7A70]">ہدف کی تاریخ</span>
+                        <span className="text-[#6B7A70]">
+                          {t("goals.targetDate")}
+                        </span>
                         <span>
                           {g.targetDate
                             ? new Date(g.targetDate).toLocaleDateString(
-                                "ur-PK",
+                                dateLocale,
                                 {
                                   month: "long",
                                   year: "numeric",
                                 },
                               )
-                            : "مقرر نہیں"}
+                            : t("goals.notSet")}
                         </span>
                       </div>
                     </div>
@@ -319,14 +326,14 @@ export default function GoalsPage() {
                           onClick={() => openContributeDialog(g)}
                           className="flex-1 rounded-[9px] border-0 bg-[#F1EEE4] py-[11px] text-[14px] hover:bg-[#E7E2D6]"
                         >
-                          رقم جمع کریں
+                          {t("goals.contribute")}
                         </button>
                       )}
                       <button
                         onClick={() => openEditGoal(g)}
                         className="rounded-[9px] border border-[#DCD6C8] px-3 py-[11px] text-[14px] text-[#0F5132] hover:bg-[#FBF9F4]"
                       >
-                        تبدیلی
+                        {t("goals.edit")}
                       </button>
                       <button
                         onClick={() => {
@@ -338,7 +345,7 @@ export default function GoalsPage() {
                         }}
                         className="rounded-[9px] border border-[#DCD6C8] px-3 py-[11px] text-[14px] text-[#B3261E] hover:bg-[#FDE8E8]"
                       >
-                        حذف
+                        {t("goals.delete")}
                       </button>
                     </div>
                   </div>
@@ -349,11 +356,10 @@ export default function GoalsPage() {
             {/* What-if scenario placeholder */}
             <div className="rounded-2xl border border-[#E7E2D6] bg-white p-6">
               <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#0F5132]">
-                WHAT-IF · معاون کا حساب
+                {t("goals.whatIf")}
               </span>
               <p className="mt-2 text-[15px] leading-[2.05] text-[#4C5A52]">
-                جیسے ہی آپ کے لین دین کا ڈیٹا دستیاب ہو گا، معاون مختلف
-                منظرناموں کا حساب لگا کر بتائے گا کہ آپ کے اہداف کب مکمل ہوں گے۔
+                {t("goals.whatIfDesc")}
               </p>
             </div>
           </>
@@ -365,21 +371,23 @@ export default function GoalsPage() {
         <DialogContent className="sm:max-w-md border-[#E7E2D6] bg-white">
           <DialogHeader>
             <DialogTitle className="text-[18px]">
-              {editingGoalId ? "ہدف میں تبدیلی" : "نیا بچت کا ہدف"}
+              {editingGoalId
+                ? t("goals.dialog.editTitle")
+                : t("goals.dialog.newTitle")}
             </DialogTitle>
             <DialogDescription className="text-[14px] text-[#6B7A70]">
               {editingGoalId
-                ? "تفصیلات تبدیل کریں اور محفوظ کریں"
-                : "ہدف کا نام، رقم اور اختیاری تاریخ مقرر کریں"}
+                ? t("goals.dialog.editDesc")
+                : t("goals.dialog.newDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 pt-2">
             {/* Name */}
             <div className="flex flex-col gap-1.5">
-              <Label className={labelCls}>ہدف کا نام</Label>
+              <Label className={labelCls}>{t("goals.dialog.name")}</Label>
               <Input
                 type="text"
-                placeholder="مثلاً: ایمرجنسی فنڈ"
+                placeholder={t("goals.dialog.namePlaceholder")}
                 value={goalName}
                 onChange={(e) => {
                   setGoalName(e.target.value);
@@ -398,11 +406,13 @@ export default function GoalsPage() {
 
             {/* Target amount */}
             <div className="flex flex-col gap-1.5">
-              <Label className={labelCls}>ہدف کی رقم (PKR)</Label>
+              <Label className={labelCls}>
+                {t("goals.dialog.targetAmount")}
+              </Label>
               <Input
                 type="number"
                 inputMode="decimal"
-                placeholder="مثلاً 100,000"
+                placeholder={t("goals.dialog.targetPlaceholder")}
                 value={goalTarget}
                 onChange={(e) => {
                   setGoalTarget(e.target.value);
@@ -423,8 +433,10 @@ export default function GoalsPage() {
             {/* Target date (optional) */}
             <div className="flex flex-col gap-1.5">
               <Label className={labelCls}>
-                ہدف کی تاریخ{" "}
-                <span className="font-normal text-[#9BA79F]">(اختیاری)</span>
+                {t("goals.dialog.targetDate")}{" "}
+                <span className="font-normal text-[#9BA79F]">
+                  ({t("goals.dialog.optional")})
+                </span>
               </Label>
               <Input
                 type="date"
@@ -441,7 +453,7 @@ export default function GoalsPage() {
               onClick={() => setGoalDialogOpen(false)}
               className="rounded-[10px] border-[#DCD6C8] bg-white text-[14px]"
             >
-              منسوخ
+              {t("goals.dialog.cancel")}
             </Button>
             <Button
               onClick={handleSaveGoal}
@@ -449,10 +461,10 @@ export default function GoalsPage() {
               className="rounded-[10px] border-0 bg-[#0F5132] px-6 text-[14px] text-white hover:bg-[#14231B]"
             >
               {goalSubmitting
-                ? "محفوظ ہو رہا ہے…"
+                ? t("goals.dialog.saving")
                 : editingGoalId
-                  ? "تبدیلی محفوظ کریں"
-                  : "محفوظ کریں"}
+                  ? t("goals.dialog.saveChanges")
+                  : t("goals.dialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -463,7 +475,7 @@ export default function GoalsPage() {
         <AlertDialogContent className="border-[#E7E2D6] bg-white sm:max-w-sm">
           <AlertDialogHeader className="text-start">
             <AlertDialogTitle className="text-[18px] font-bold text-[#14231B]">
-              ہدف حذف کریں؟
+              {t("goals.delete.title")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[14px] leading-[2] text-[#6B7A70]">
               {deleteGoalTarget && (
@@ -471,8 +483,7 @@ export default function GoalsPage() {
                   {deleteGoalTarget.name}
                 </span>
               )}
-              کیا آپ واقعی یہ بچت کا ہدف حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں ہو
-              سکتا۔
+              {t("goals.delete.desc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-2.5">
@@ -480,13 +491,13 @@ export default function GoalsPage() {
               onClick={() => setDeleteGoalOpen(false)}
               className="rounded-[10px] border-[#DCD6C8] bg-white text-[14px] hover:bg-[#FBF9F4]"
             >
-              نہیں، رہنے دیں
+              {t("goals.delete.keep")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteGoal}
               className="rounded-[10px] border-0 bg-[#B3261E] text-[14px] text-white hover:bg-[#8C1E18]"
             >
-              ہاں، حذف کریں
+              {t("goals.delete.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -496,17 +507,22 @@ export default function GoalsPage() {
       <Dialog open={contributeOpen} onOpenChange={setContributeOpen}>
         <DialogContent className="sm:max-w-md border-[#E7E2D6] bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[18px]">رقم جمع کریں</DialogTitle>
+            <DialogTitle className="text-[18px]">
+              {t("goals.contribute.title")}
+            </DialogTitle>
             <DialogDescription className="text-[14px] text-[#6B7A70]">
-              {activeGoal?.name} — موجودہ: {pkr(activeGoal?.currentAmount ?? 0)}{" "}
-              / {pkr(activeGoal?.targetAmount ?? 0)}
+              {activeGoal?.name} — {t("goals.contribute.current")}:{" "}
+              {pkr(activeGoal?.currentAmount ?? 0)} /{" "}
+              {pkr(activeGoal?.targetAmount ?? 0)}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-2">
-            <label className="text-[13px] text-[#6B7A70]">رقم (PKR)</label>
+            <label className="text-[13px] text-[#6B7A70]">
+              {t("goals.contribute.amountLabel")}
+            </label>
             <Input
               type="number"
-              placeholder="مثلاً 5000"
+              placeholder={t("goals.contribute.placeholder")}
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
@@ -530,14 +546,16 @@ export default function GoalsPage() {
               variant="outline"
               className="flex-1 h-10 text-[14px] border-[#DCD6C8]"
             >
-              منسوخ
+              {t("goals.contribute.cancel")}
             </Button>
             <Button
               onClick={handleContributeSubmit}
               disabled={contributing || !amount.trim()}
               className="flex-1 h-10 text-[14px] bg-[#0F5132] text-white hover:bg-[#14231B]"
             >
-              {contributing ? "جمع ہو رہا ہے…" : "جمع کریں"}
+              {contributing
+                ? t("goals.contribute.submitting")
+                : t("goals.contribute.submit")}
             </Button>
           </DialogFooter>
         </DialogContent>

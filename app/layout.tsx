@@ -52,8 +52,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ur"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
       suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-[var(--font-noto-naskh-arabic)] bg-[#F7F4EC] text-[#14231B]">
         <ClerkProvider appearance={shadcn}>{children}</ClerkProvider>

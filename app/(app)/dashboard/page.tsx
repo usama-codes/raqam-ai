@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useGoals } from "@/hooks/useGoals";
 import { useBudgets } from "@/hooks/useBudgets";
+import { useLanguage } from "@/components/LanguageProvider";
 import {
   PageSkeleton,
   EmptyState,
@@ -28,6 +29,7 @@ export default function DashboardPage() {
     loading: budgetLoading,
     error: budgetError,
   } = useBudgets();
+  const { t } = useLanguage();
 
   const loading = summaryLoading || goalsLoading || budgetLoading;
   const hasError = summaryError || goalsError || budgetError;
@@ -63,9 +65,9 @@ export default function DashboardPage() {
           </div>
           <EmptyState
             icon="📊"
-            title="ابھی کوئی ڈیٹا نہیں"
-            description="اپنا پہلا لین دین شامل کریں یا بینک اسٹیٹمنٹ درآمد کریں تاکہ آپ کا ڈیش بورڈ نظر آئے۔"
-            actionLabel="+ نیا لین دین"
+            title={t("dashboard.emptyTitle")}
+            description={t("dashboard.emptyDesc")}
+            actionLabel={t("dashboard.newTransaction")}
           />
         </div>
       </div>
@@ -82,30 +84,36 @@ export default function DashboardPage() {
       <DashboardHeader />
 
       <div className="flex flex-col gap-[22px] px-6 pb-12 pt-7 sm:px-10">
-        {/* Budget alert banner (placeholder — dynamic in Phase 6) */}
-
         {/* Stat cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl bg-[#0F5132] p-5 text-[#EAF1EB]">
-            <span className="text-[13px] text-[#B9CFC1]">اس مہینے کی بچت</span>
+            <span className="text-[13px] text-[#B9CFC1]">
+              {t("dashboard.savingsThisMonth")}
+            </span>
             <span className="font-[var(--font-manrope)] text-[clamp(20px,2.1vw,30px)] font-extrabold tracking-[-.02em] whitespace-nowrap">
               {pkr(summary?.netSavings ?? 0)}
             </span>
           </div>
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-[#E7E2D6] bg-white p-5">
-            <span className="text-[13px] text-[#6B7A70]">کل آمدنی</span>
+            <span className="text-[13px] text-[#6B7A70]">
+              {t("dashboard.totalIncome")}
+            </span>
             <span className="font-[var(--font-manrope)] text-[clamp(20px,2.1vw,30px)] font-extrabold tracking-[-.02em] whitespace-nowrap">
               {pkr(summary?.totalIncome ?? 0)}
             </span>
           </div>
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-[#E7E2D6] bg-white p-5">
-            <span className="text-[13px] text-[#6B7A70]">کل اخراجات</span>
+            <span className="text-[13px] text-[#6B7A70]">
+              {t("dashboard.totalExpenses")}
+            </span>
             <span className="font-[var(--font-manrope)] text-[clamp(20px,2.1vw,30px)] font-extrabold tracking-[-.02em] whitespace-nowrap">
               {pkr(summary?.totalExpenses ?? 0)}
             </span>
           </div>
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-[#E7E2D6] bg-white p-5">
-            <span className="text-[13px] text-[#6B7A70]">بچت کی شرح</span>
+            <span className="text-[13px] text-[#6B7A70]">
+              {t("dashboard.savingsRate")}
+            </span>
             <span className="font-[var(--font-manrope)] text-[clamp(20px,2.1vw,30px)] font-extrabold tracking-[-.02em] whitespace-nowrap">
               {summary ? `${summary.savingsRate.toFixed(1)}%` : "—"}
             </span>
@@ -126,7 +134,9 @@ export default function DashboardPage() {
           {categorySpending.length > 0 ? (
             <div className="flex flex-col gap-[18px] rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
               <div className="flex items-center justify-between">
-                <h2 className="text-[18px] font-bold">زمرے کے حساب سے خرچ</h2>
+                <h2 className="text-[18px] font-bold">
+                  {t("dashboard.categorySpending")}
+                </h2>
                 <span className="font-[var(--font-manrope)] text-[12px] text-[#6B7A70]">
                   {pkr(summary?.totalExpenses ?? 0)}
                 </span>
@@ -159,12 +169,13 @@ export default function DashboardPage() {
 
           {/* Trend + Bills */}
           <div className="flex flex-col gap-4">
-            {/* 6-month trend placeholder */}
+            {/* 6-month trend */}
             <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
-              <h2 className="text-[18px] font-bold">چھ مہینوں کا رجحان</h2>
+              <h2 className="text-[18px] font-bold">
+                {t("dashboard.sixMonthTrend")}
+              </h2>
               <p className="text-[13px] leading-[1.9] text-[#6B7A70]">
-                رجحان کا ڈیٹا دستیاب نہیں — جیسے ہی لین دین شامل ہوں گے، چارٹ
-                نظر آئے گا۔
+                {t("dashboard.trendUnavailable")}
               </p>
             </div>
 
@@ -172,7 +183,7 @@ export default function DashboardPage() {
             {upcomingBills.length > 0 ? (
               <div className="flex flex-col gap-3.5 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
                 <h2 className="text-[18px] font-bold">
-                  اگلے 7 دن میں متوقع بل
+                  {t("dashboard.upcomingBills")}
                 </h2>
                 {upcomingBills.map((bill, i) => (
                   <div
@@ -196,12 +207,14 @@ export default function DashboardPage() {
           {recentTransactions.length > 0 ? (
             <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
               <div className="flex items-center justify-between">
-                <h2 className="text-[18px] font-bold">حالیہ لین دین</h2>
+                <h2 className="text-[18px] font-bold">
+                  {t("dashboard.recentTransactions")}
+                </h2>
                 <Link
                   href="/transactions"
                   className="text-[14px] text-[#0F5132] hover:underline"
                 >
-                  سب دیکھیں →
+                  {t("dashboard.viewAll")}
                 </Link>
               </div>
               <div className="flex flex-col gap-0.5">
@@ -230,11 +243,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
-              <h2 className="text-[18px] font-bold">حالیہ لین دین</h2>
+              <h2 className="text-[18px] font-bold">
+                {t("dashboard.recentTransactions")}
+              </h2>
               <EmptyState
                 icon="💸"
-                title="کوئی لین دین نہیں"
-                description="ابھی تک کوئی لین دین درج نہیں ہوا۔"
+                title={t("dashboard.noTransactions")}
+                description={t("dashboard.noTransactionsDesc")}
               />
             </div>
           )}
@@ -245,12 +260,14 @@ export default function DashboardPage() {
             {budgetCategories.length > 0 ? (
               <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[18px] font-bold">بجٹ کا استعمال</h2>
+                  <h2 className="text-[18px] font-bold">
+                    {t("dashboard.budgetUtilization")}
+                  </h2>
                   <Link
                     href="/budgets"
                     className="text-[14px] text-[#0F5132] hover:underline"
                   >
-                    تفصیل →
+                    {t("dashboard.detail")}
                   </Link>
                 </div>
                 <div className="flex flex-col gap-[13px]">
@@ -295,7 +312,9 @@ export default function DashboardPage() {
             {/* Savings goals */}
             {goals.length > 0 ? (
               <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-[22px]">
-                <h2 className="text-[18px] font-bold">بچت کے اہداف</h2>
+                <h2 className="text-[18px] font-bold">
+                  {t("dashboard.savingsGoals")}
+                </h2>
                 {goals.map((g) => {
                   const pct =
                     g.targetAmount > 0
@@ -329,24 +348,28 @@ export default function DashboardPage() {
 
 /* ── Shared header ── */
 function DashboardHeader() {
+  const { t } = useLanguage();
+
   return (
     <header className="sticky top-0 z-[5] flex items-center justify-between gap-5 border-b border-[#E7E2D6] bg-white px-6 py-[26px] sm:px-10">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[26px] font-bold leading-[1.7]">خوش آمدید</h1>
-        <p className="text-[14px] text-[#6B7A70]">آپ کے مالی خلاصے</p>
+        <h1 className="text-[26px] font-bold leading-[1.7]">
+          {t("dashboard.welcome")}
+        </h1>
+        <p className="text-[14px] text-[#6B7A70]">{t("dashboard.subtitle")}</p>
       </div>
       <div className="flex items-center gap-2.5">
         <Link
           href="/transactions"
           className="hidden rounded-[10px] border border-[#E7E2D6] bg-[#F1EEE4] px-3.5 py-[9px] text-[14px] sm:block"
         >
-          لین دین دیکھیں
+          {t("dashboard.viewTransactions")}
         </Link>
         <Link
           href="/transactions"
           className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-[11px] text-[14px] text-white hover:bg-[#14231B]"
         >
-          + نیا لین دین
+          {t("dashboard.newTransaction")}
         </Link>
       </div>
     </header>

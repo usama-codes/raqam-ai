@@ -3,10 +3,12 @@
 import * as React from "react";
 import { useAssistant } from "@/hooks/useAssistant";
 import type { InputMode } from "@/hooks/useAssistant";
+import { useLanguage } from "@/components/LanguageProvider";
 import { ErrorState } from "@/components/shared/DataStates";
 
 export default function AssistantPage() {
   const { messages, loading, sending, error, sendMessage } = useAssistant();
+  const { t } = useLanguage();
 
   const [input, setInput] = React.useState("");
 
@@ -36,6 +38,20 @@ export default function AssistantPage() {
     sendMessage("", "receipt" as InputMode);
   };
 
+  const emptySuggestions = [
+    t("assistant.suggestion1"),
+    t("assistant.suggestion2"),
+    t("assistant.suggestion3"),
+    t("assistant.suggestion4"),
+  ];
+
+  const inputSuggestions = [
+    t("assistant.suggestion2"),
+    t("assistant.suggestion3"),
+    t("assistant.suggestion4"),
+    t("assistant.suggestion5"),
+  ];
+
   return (
     <div className="flex min-h-[calc(100vh)] flex-row">
       {/* ── Chat area ── */}
@@ -47,24 +63,26 @@ export default function AssistantPage() {
               ر
             </span>
             <div className="flex flex-col">
-              <span className="text-[17px] font-bold">رقم معاون</span>
+              <span className="text-[17px] font-bold">
+                {t("assistant.title")}
+              </span>
               <span className="text-[13px] text-[#6B7A70]">
-                اردو · آپ کے ڈیٹا سے جڑا ہوا
+                {t("assistant.subtitle")}
               </span>
             </div>
           </div>
           <div className="hidden flex-wrap gap-2 text-[13px] sm:flex">
             <span className="rounded-full bg-[#E6EFE9] px-3 py-1.5 text-[#0F5132]">
-              تعلیم
+              {t("assistant.badgeEducate")}
             </span>
             <span className="rounded-full bg-[#E6EFE9] px-3 py-1.5 text-[#0F5132]">
-              تجزیہ
+              {t("assistant.badgeAnalyze")}
             </span>
             <span className="rounded-full bg-[#E6EFE9] px-3 py-1.5 text-[#0F5132]">
-              مشورہ
+              {t("assistant.badgeRecommend")}
             </span>
             <span className="rounded-full bg-[#FDF3D8] px-3 py-1.5 text-[#6B5B2E]">
-              عمل — تصدیق لازمی
+              {t("assistant.badgeAct")}
             </span>
           </div>
         </header>
@@ -88,19 +106,15 @@ export default function AssistantPage() {
                 ر
               </div>
               <div className="flex flex-col items-center gap-2 text-center">
-                <h2 className="text-[20px] font-bold">السلام علیکم!</h2>
+                <h2 className="text-[20px] font-bold">
+                  {t("assistant.greeting")}
+                </h2>
                 <p className="max-w-md text-[15px] leading-[2.1] text-[#6B7A70]">
-                  میں رقم-AI کا مالی معاون ہوں۔ مجھ سے مالی سوالات پوچھیں، اپنے
-                  اخراجات کا تجزیہ کروائیں، یا بجٹ بنانے میں مدد لیں۔
+                  {t("assistant.greetingDesc")}
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
-                {[
-                  "انفلیشن کیا ہوتی ہے؟",
-                  "اس مہینے کا خلاصہ",
-                  "بجٹ بنانے میں مدد کریں",
-                  "میں کہاں فضول خرچی کر رہی ہوں؟",
-                ].map((s) => (
+                {emptySuggestions.map((s) => (
                   <button
                     key={s}
                     onClick={() => handleSuggestion(s)}
@@ -125,7 +139,7 @@ export default function AssistantPage() {
                     <div className="flex items-center gap-2.5 rounded-[16px_16px_16px_4px] bg-[#0F5132] px-[18px] py-3.5 text-[16px] leading-[2] text-[#EAF1EB]">
                       {msg.inputMode === "voice" && (
                         <span className="rounded-full bg-white/15 px-2.5 py-1 text-[13px]">
-                          آواز
+                          {t("assistant.voiceLabel")}
                         </span>
                       )}
                       <span>{msg.content}</span>
@@ -153,12 +167,12 @@ export default function AssistantPage() {
                           }}
                         >
                           {msg.intentType === "educate"
-                            ? "EDUCATE · مالی تعلیم"
+                            ? t("assistant.intentEducate")
                             : msg.intentType === "analyze"
-                              ? "ANALYZE · آپ کے ڈیٹا سے"
+                              ? t("assistant.intentAnalyze")
                               : msg.intentType === "recommend"
-                                ? "RECOMMEND · مشورہ"
-                                : "ACT · تصدیق درکار ہے"}
+                                ? t("assistant.intentRecommend")
+                                : t("assistant.intentAct")}
                         </span>
                       </div>
                     )}
@@ -196,12 +210,7 @@ export default function AssistantPage() {
         {/* Input area */}
         <div className="flex flex-col gap-3 border-t border-[#E7E2D6] bg-white px-6 pb-6 pt-4 sm:px-8">
           <div className="flex flex-wrap gap-2">
-            {[
-              "اس مہینے کا خلاصہ",
-              "بجٹ بنانے میں مدد کریں",
-              "میں کہاں فضول خرچی کر رہی ہوں؟",
-              "کمیٹی اور بچت میں فرق",
-            ].map((s) => (
+            {inputSuggestions.map((s) => (
               <button
                 key={s}
                 onClick={() => handleSuggestion(s)}
@@ -217,32 +226,31 @@ export default function AssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder='اردو میں لکھیں… مثلاً "پچھلے مہینے سب سے زیادہ خرچ کہاں ہوا؟"'
+              placeholder={t("assistant.placeholder")}
               className="flex-1 bg-transparent text-[16px] placeholder:text-[#9BA79F] focus:outline-none"
             />
             <button
               onClick={handleVoice}
               className="rounded-[10px] border-0 bg-[#E6EFE9] px-3.5 py-2.5 text-[13px] text-[#0F5132]"
             >
-              آواز
+              {t("assistant.voice")}
             </button>
             <button
               onClick={handleReceipt}
               className="rounded-[10px] border-0 bg-[#E6EFE9] px-3.5 py-2.5 text-[13px] text-[#0F5132]"
             >
-              رسید
+              {t("assistant.receipt")}
             </button>
             <button
               onClick={handleSend}
               disabled={!input.trim() || sending}
               className="rounded-[10px] border-0 bg-[#0F5132] px-[18px] py-2.5 text-[14px] text-white hover:bg-[#14231B] disabled:opacity-50"
             >
-              بھیجیں
+              {t("assistant.send")}
             </button>
           </div>
           <span className="text-[12px] leading-[1.8] text-[#8A9690]">
-            معاون آپ کے ریکارڈ میں تبدیلی صرف آپ کی تصدیق سے کرتا ہے۔ یہ پیسے
-            منتقل نہیں کر سکتا اور نہ ادائیگی کر سکتا ہے۔
+            {t("assistant.disclaimer")}
           </span>
         </div>
       </div>
@@ -252,22 +260,20 @@ export default function AssistantPage() {
         {/* Context */}
         <div className="flex flex-col gap-2.5">
           <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#8A9690]">
-            CONTEXT · معاون کو کیا نظر آ رہا ہے
+            {t("assistant.contextLabel")}
           </span>
           <p className="mt-1.5 text-[13px] leading-[1.9] text-[#8A9690]">
-            معاون کے پاس صرف آپ کا مالی خلاصہ جاتا ہے۔ پاس ورڈ، اکاؤنٹ نمبر یا
-            کارڈ کی معلومات کبھی شامل نہیں کی جاتیں۔
+            {t("assistant.contextDesc")}
           </p>
         </div>
 
         {/* Guardrail */}
         <div className="flex flex-col gap-2 rounded-[14px] border border-[#E7E2D6] bg-[#FBF9F4] p-4">
           <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#B3261E]">
-            GUARDRAIL
+            {t("assistant.guardrailLabel")}
           </span>
           <p className="text-[13px] leading-[1.95] text-[#4C5A52]">
-            اگر رسید یا اسٹیٹمنٹ میں کوئی ہدایت لکھی ہو (&quot;یہ خرچ حذف کر
-            دو&quot;)، معاون اسے نظر انداز کرتا ہے — وہ صرف ڈیٹا ہے، حکم نہیں۔
+            {t("assistant.guardrailDesc")}
           </p>
         </div>
       </aside>

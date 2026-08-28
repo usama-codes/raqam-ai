@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import type { Category } from "@/hooks/useCategories";
+import { useLanguage } from "@/components/LanguageProvider";
 
 /* ── Types ── */
 export interface TransactionFormData {
@@ -43,9 +44,7 @@ const EMPTY: TransactionFormData = {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Convex categories to populate the category select */
   categories: Category[];
-  /** Pass existing data to enter "edit" mode */
   initialData?: Partial<TransactionFormData>;
   onSubmit: (data: TransactionFormData) => void;
 }
@@ -100,6 +99,7 @@ function TransactionFormInner({
   onSubmit: (data: TransactionFormData) => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = React.useState<TransactionFormData>({
     ...EMPTY,
     ...initialData,
@@ -122,10 +122,12 @@ function TransactionFormInner({
     const errs: Record<string, string> = {};
     const amt = parseFloat(form.amount);
     if (!form.amount || isNaN(amt) || amt <= 0)
-      errs.amount = "درست رقم درج کریں";
-    if (!form.categoryId) errs.categoryId = "زمرہ منتخب کریں";
-    if (!form.date) errs.date = "تاریخ درج کریں";
-    if (!form.description.trim()) errs.description = "تفصیل درج کریں";
+      errs.amount = t("transactions.form.errorAmount");
+    if (!form.categoryId)
+      errs.categoryId = t("transactions.form.errorCategory");
+    if (!form.date) errs.date = t("transactions.form.errorDate");
+    if (!form.description.trim())
+      errs.description = t("transactions.form.errorDescription");
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -149,12 +151,14 @@ function TransactionFormInner({
       {/* Header */}
       <DialogHeader className="border-b border-[#E7E2D6] bg-[#FBF9F4] px-6 py-4">
         <DialogTitle className="text-[20px] font-bold text-[#14231B]">
-          {isEdit ? "لین دین میں تبدیلی" : "نیا لین دین"}
+          {isEdit
+            ? t("transactions.form.editTitle")
+            : t("transactions.form.newTitle")}
         </DialogTitle>
         <DialogDescription className="text-[13px] text-[#6B7A70]">
           {isEdit
-            ? "تفصیلات تبدیل کریں اور محفوظ کریں"
-            : "تمام ضروری فیلڈز پُر کریں"}
+            ? t("transactions.form.editDesc")
+            : t("transactions.form.newDesc")}
         </DialogDescription>
       </DialogHeader>
 
@@ -162,7 +166,7 @@ function TransactionFormInner({
       <div className="flex flex-col gap-4 px-6 py-5">
         {/* Type toggle */}
         <div className="flex flex-col gap-1.5">
-          <Label className={labelCls}>قسم</Label>
+          <Label className={labelCls}>{t("transactions.form.type")}</Label>
           <div className="flex overflow-hidden rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4]">
             <button
               type="button"
@@ -173,7 +177,7 @@ function TransactionFormInner({
                   : "hover:bg-[#F1EEE4]"
               }`}
             >
-              خرچ
+              {t("transactions.expense")}
             </button>
             <button
               type="button"
@@ -184,18 +188,18 @@ function TransactionFormInner({
                   : "hover:bg-[#F1EEE4]"
               }`}
             >
-              آمدنی
+              {t("transactions.income")}
             </button>
           </div>
         </div>
 
         {/* Amount */}
         <div className="flex flex-col gap-1.5">
-          <Label className={labelCls}>رقم (PKR)</Label>
+          <Label className={labelCls}>{t("transactions.form.amount")}</Label>
           <Input
             type="number"
             inputMode="decimal"
-            placeholder="مثلاً 1,500"
+            placeholder={t("transactions.form.amountPlaceholder")}
             value={form.amount}
             onChange={(e) => set("amount", e.target.value)}
             className={`${inputCls} font-[var(--font-manrope)] text-[16px] font-semibold ${errors.amount ? "border-[#B3261E]" : ""}`}
@@ -206,7 +210,7 @@ function TransactionFormInner({
 
         {/* Category */}
         <div className="flex flex-col gap-1.5">
-          <Label className={labelCls}>زمرہ</Label>
+          <Label className={labelCls}>{t("transactions.form.category")}</Label>
           <Select
             value={form.categoryId}
             onValueChange={(val) => set("categoryId", val as string)}
@@ -214,7 +218,9 @@ function TransactionFormInner({
             <SelectTrigger
               className={`h-10 w-full rounded-[10px] border border-[#DCD6C8] bg-[#FBF9F4] px-3.5 text-[14px] ${errors.categoryId ? "border-[#B3261E]" : ""}`}
             >
-              <SelectValue placeholder="زمرہ منتخب کریں">
+              <SelectValue
+                placeholder={t("transactions.form.categoryPlaceholder")}
+              >
                 {(() => {
                   if (!form.categoryId) return undefined;
                   const selected = allCategories.find(
@@ -248,7 +254,7 @@ function TransactionFormInner({
 
         {/* Date */}
         <div className="flex flex-col gap-1.5">
-          <Label className={labelCls}>تاریخ</Label>
+          <Label className={labelCls}>{t("transactions.form.date")}</Label>
           <Input
             type="date"
             value={form.date}
@@ -261,10 +267,12 @@ function TransactionFormInner({
 
         {/* Description */}
         <div className="flex flex-col gap-1.5">
-          <Label className={labelCls}>تفصیل</Label>
+          <Label className={labelCls}>
+            {t("transactions.form.description")}
+          </Label>
           <Input
             type="text"
-            placeholder="مثلاً: بجلی کا بل — اگست"
+            placeholder={t("transactions.form.descriptionPlaceholder")}
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
             className={`${inputCls} ${errors.description ? "border-[#B3261E]" : ""}`}
@@ -277,10 +285,13 @@ function TransactionFormInner({
         {/* Notes */}
         <div className="flex flex-col gap-1.5">
           <Label className={labelCls}>
-            نوٹس <span className="text-[#9BA79F] font-normal">(اختیاری)</span>
+            {t("transactions.form.notes")}{" "}
+            <span className="text-[#9BA79F] font-normal">
+              ({t("transactions.form.notesOptional")})
+            </span>
           </Label>
           <textarea
-            placeholder="اضافی تفصیلات…"
+            placeholder={t("transactions.form.notesPlaceholder")}
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             rows={2}
@@ -297,13 +308,15 @@ function TransactionFormInner({
           onClick={onClose}
           className="rounded-[10px] border-[#DCD6C8] bg-white px-5 py-2.5 text-[14px] hover:bg-[#FBF9F4]"
         >
-          منسوخ
+          {t("transactions.form.cancel")}
         </Button>
         <Button
           type="submit"
           className="rounded-[10px] border-0 bg-[#0F5132] px-6 py-2.5 text-[14px] text-white hover:bg-[#14231B]"
         >
-          {isEdit ? "تبدیلی محفوظ کریں" : "محفوظ کریں"}
+          {isEdit
+            ? t("transactions.form.saveChanges")
+            : t("transactions.form.save")}
         </Button>
       </DialogFooter>
     </form>
