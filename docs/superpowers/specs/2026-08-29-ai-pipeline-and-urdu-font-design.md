@@ -58,14 +58,17 @@ in AGENTS.md §7. Only the transport is fixed.
 
 | Setting | Value |
 | --- | --- |
-| Model ID | `gemini-2.5-flash-lite` |
+| Model ID | `gemini-3.5-flash-lite` |
 | Endpoint | `https://generativelanguage.googleapis.com/v1beta/openai/` (OpenAI-compatible, unchanged) |
 | API mode | `chat_completions` |
 | Tracing | disabled |
 
-`gemini-2.5-flash-lite` is on the Gemini API free tier, is the cheapest current Flash-Lite tier,
-and supports function calling. Defined as a single `MODEL` constant so it is swappable in one line
-(e.g. to `gemini-3.5-flash-lite` later).
+`gemini-3.5-flash-lite` is on the Gemini API free tier, is the cheapest current Flash-Lite tier,
+and supports function calling. Defined as a single `MODEL` constant so it is swappable in one line.
+
+> Note: `gemini-2.0-flash` (original) and `gemini-2.5-flash-lite` both returned 404 during
+> implementation — the first retired, the second "no longer available to new users". The
+> deployment's API key resolves `gemini-3.5-flash-lite`.
 
 ### 1.4 Changes
 
@@ -110,7 +113,7 @@ and supports function calling. Defined as a single `MODEL` constant so it is swa
   ```
 
 - Keep the existing `apiKey` presence check; throw the same clear error if unset.
-- **Add** `const MODEL = "gemini-2.5-flash-lite";` and replace all four `model: "gemini-2.0-flash"`
+- **Add** `const MODEL = "gemini-3.5-flash-lite";` and replace all four `model: "gemini-2.0-flash"`
   occurrences with `model: MODEL`.
 - **Change** `new Runner({ modelProvider: geminiProvider, tracingDisabled: true })` →
   `new Runner({ tracingDisabled: true })`. The default provider now uses the global OpenAI client.
@@ -148,7 +151,7 @@ useAssistant.sendMessage(content)
       → orchestrate({ userMessage, preferredLanguage, conversationHistory }, ctx, api)
           → buildFinancialContext(ctx, api)      (best-effort; specialists handle absence)
           → Runner.run(triageAgent, [...history, userMessage], { context, maxTurns: 5 })
-              → Gemini (chat completions, gemini-2.5-flash-lite)
+              → Gemini (chat completions, gemini-3.5-flash-lite)
               → handoff → Education | Analyze | Action agent → final text
           → { content, intentType }              (intentType from result.lastAgent.name)
       → runMutation api.assistant.saveAssistantMessage

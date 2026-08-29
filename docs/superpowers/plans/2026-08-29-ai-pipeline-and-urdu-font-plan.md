@@ -50,7 +50,7 @@ Edit `lib/ai/orchestrator.ts`:
      setTracingDisabled,
    } from "@openai/agents";
 
-   const MODEL = "gemini-2.5-flash-lite";
+   const MODEL = "gemini-3.5-flash-lite";
 
    setTracingDisabled(true);
    setOpenAIAPI("chat_completions");
@@ -166,5 +166,5 @@ surfaces (line-height, size, weight, exact scope).
 ## Phase H — Wrap up
 
 1. Update `PROGRESS.md` Phase 8 notes: SDK transport corrected (node action + real openai client,
-   `gemini-2.5-flash-lite`); font system updated.
+   `gemini-3.5-flash-lite`); font system updated.
 2. Confirm `.env.example` still lists `GOOGLE_GENERATIVE_AI_API_KEY` (it does) — no change.

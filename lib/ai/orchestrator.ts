@@ -28,7 +28,7 @@ import {
 // ─── Model provider configuration ───────────────────────────────────────────────
 
 /** Gemini model id. Free tier, cheapest current Flash-Lite. Swap in one place. */
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
 setTracingDisabled(true);
 setOpenAIAPI("chat_completions");
