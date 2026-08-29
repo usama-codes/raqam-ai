@@ -5,6 +5,7 @@ import { useAssistant } from "@/hooks/useAssistant";
 import type { InputMode } from "@/hooks/useAssistant";
 import { useLanguage } from "@/components/LanguageProvider";
 import { ErrorState } from "@/components/shared/DataStates";
+import { MarkdownMessage } from "@/components/assistant/MarkdownMessage";
 
 export default function AssistantPage() {
   const { messages, loading, sending, error, sendMessage } = useAssistant();
@@ -176,8 +177,8 @@ export default function AssistantPage() {
                         </span>
                       </div>
                     )}
-                    <div className="rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-[14px] text-[16px] font-reading">
-                      {msg.content}
+                    <div className="rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-4 text-[16px] font-reading">
+                      <MarkdownMessage content={msg.content} />
                     </div>
                   </div>
                 )}

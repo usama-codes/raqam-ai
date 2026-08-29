@@ -273,6 +273,63 @@ range automatically.
 
 ---
 
+## Part 3 — Markdown rendering in assistant replies (added 2026-08-29)
+
+### 3.1 Problem
+
+With the pipeline live, Gemini's `analyze` / `educate` replies come back as Markdown — `**bold**`
+term labels, `-` bullet lists, `1.` numbered lists, occasional tables. The assistant bubble
+rendered `{msg.content}` as a raw string, so every marker leaked through as literal text and
+newlines collapsed into one run-on block.
+
+### 3.2 Decision
+
+Render `msg.content` through `react-markdown@10.1.0` with:
+
+- `remark-gfm@4.0.1` — tables, strikethrough, task lists, autolinks.
+- `remark-breaks@4.0.0` — a single `\n` becomes a line break. LLMs emit `\n` expecting it to
+  show; without this, soft-wrapped lines merge.
+
+No `rehype-raw` — embedded HTML in model output stays inert (escaped), so there is no injection
+surface. All three packages are MIT and dependency-free of runtime services (AGENTS.md §3: exact
+pins added to `package.json`).
+
+### 3.3 Changes
+
+#### New: `components/assistant/MarkdownMessage.tsx`
+
+Client component. `<ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={…}>`.
+The `components` map restyles every element for the RTL Nastaliq reading surface:
+
+- Running text (`p`) keeps a tall `leading-[2.3]`; headings and list rows use tighter leading so
+  they don't drift apart.
+- Lists use logical `ps-*`; blockquote uses `border-s-*` — both resolve to the right-hand side
+  under `dir="rtl"`.
+- `strong` renders in the brand green (`#0F5132`) — Gemini uses bold for the figure labels
+  ("کل آمدنی", "کھانا"), so this doubles as visual structure.
+- `code` / `pre` / table cells are forced `dir="ltr"` / `text-start` (they hold PKR figures and
+  identifiers).
+- `h1`–`h4` are downshifted to `h3`–`h6` (the bubble is deep in the page outline).
+
+#### Modified: `app/(app)/assistant/page.tsx`
+
+- AI bubble content: `{msg.content}` → `<MarkdownMessage content={msg.content} />`. Bubble keeps
+  `font-reading text-[16px]` (font-family + base size cascade into the rendered elements);
+  padding bumped `py-[14px]` → `py-4`.
+- User bubbles: **no change** — still plain text.
+
+#### Modified: `package.json`
+
+`react-markdown` `10.1.0`, `remark-breaks` `4.0.0`, `remark-gfm` `4.0.1` added to `dependencies`.
+
+### 3.4 Out of scope
+
+- Syntax highlighting for code blocks (finance replies rarely contain code).
+- Streaming/incremental markdown parse (replies arrive whole from the Convex action).
+- Markdown in user messages.
+
+---
+
 ## Verification (both parts)
 
 1. `npx convex codegen` — clean.

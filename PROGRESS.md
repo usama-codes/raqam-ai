@@ -437,6 +437,8 @@ _None — phase complete._
 
 **Runtime (fixed 2026-08-29):** the `sendMessage` action lives in `convex/ai.ts` (`"use node"`) so the `openai` client + Agents SDK run in the Convex Node runtime with no shims. Queries/mutations stay in `convex/assistant.ts`. The earlier build committed `gemini-2.0-flash` (since retired → 404) and a hand-rolled `GeminiModelProvider` that never converted tool/handoff result messages — both removed. See `docs/superpowers/specs/2026-08-29-ai-pipeline-and-urdu-font-design.md`.
 
+**Markdown rendering (added 2026-08-29):** Gemini returns Markdown (`**bold**` labels, `-`/`1.` lists, tables). `components/assistant/MarkdownMessage.tsx` renders it with `react-markdown@10.1.0` + `remark-gfm@4.0.1` + `remark-breaks@4.0.0` (single `\n` → line break, matching LLM output). Every element is restyled for the RTL Nastaliq reading surface (logical `ps-*` / `border-s-*`, per-element line-height). No `rehype-raw` — embedded HTML stays inert. Assistant AI bubbles only; user bubbles stay plain text.
+
 ### Implementation requirements
 
 - [x] Connect `conversations` and `messages` tables in Convex
