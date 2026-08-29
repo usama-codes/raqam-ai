@@ -94,7 +94,7 @@ export function useAssistant(): UseAssistantReturn {
   );
   const sendMessageAction = useAction(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (api as any).assistant.sendMessage,
+    (api as any).ai.sendMessage,
   );
 
   // State
@@ -142,11 +142,14 @@ export function useAssistant(): UseAssistantReturn {
         }
 
         // Call the AI action
-        await sendMessageAction({
+        const result = await sendMessageAction({
           conversationId: convId as never,
           content,
           inputMode: mode ?? "text",
         });
+        // Soft failures come back as a friendly in-chat message with the real
+        // error attached — surface it to the console for debugging.
+        if (result?.error) console.warn("[assistant]", result.error);
       } catch (err) {
         setError(
           err instanceof Error ? err : new Error("Failed to send message"),

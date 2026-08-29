@@ -1,17 +1,14 @@
-// convex/assistant.ts — Convex action for the AI pipeline
-// Actions run server-side and can access environment variables (API keys).
+// convex/assistant.ts — Queries and mutations backing the AI pipeline.
+// The `sendMessage` action itself lives in `convex/ai.ts` ("use node").
 
 import {
-  action,
   mutation,
   query,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
 import { requireUser } from "./auth";
-import { orchestrate } from "@/lib/ai/orchestrator";
 
 // ─── Queries ────────────────────────────────────────────────────────────────────
 
@@ -123,64 +120,7 @@ export const saveAssistantMessage = mutation({
 });
 
 // ─── Main AI action ─────────────────────────────────────────────────────────────
-
-/**
- * The main AI pipeline action. Called from the client hook.
- *
- * Flow:
- * 1. Save user message to Convex
- * 2. Fetch conversation history for context
- * 3. Run AI orchestrator (classify intent → build context → generate response)
- * 4. Save assistant response to Convex
- * 5. Return the response to the client
- */
-export const sendMessage = action({
-  args: {
-    conversationId: v.id("conversations"),
-    content: v.string(),
-    inputMode: v.optional(
-      v.union(v.literal("text"), v.literal("voice"), v.literal("receipt")),
-    ),
-  },
-  handler: async (ctx, args) => {
-    // 1. Save user message
-    await ctx.runMutation(api.assistant.saveUserMessage, {
-      conversationId: args.conversationId,
-      content: args.content,
-      inputMode: args.inputMode,
-    });
-
-    // 2. Fetch conversation history (last 10 messages)
-    const history = await ctx.runQuery(api.assistant.getConversationHistory, {
-      conversationId: args.conversationId,
-    });
-
-    // 3. Get user's preferred language
-    const preferredLanguage = await ctx.runQuery(
-      api.assistant.getPreferredLanguage,
-      {},
-    );
-
-    // 4. Run AI orchestrator
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const apiRef = api as any;
-    const result = await orchestrate(
-      {
-        userMessage: args.content,
-        preferredLanguage: preferredLanguage as "ur" | "en",
-        conversationHistory: history,
-      },
-      ctx,
-      apiRef,
-    );
-
-    // 5. Save assistant response
-    await ctx.runMutation(api.assistant.saveAssistantMessage, {
-      conversationId: args.conversationId,
-      content: result.content,
-      intentType: result.intentType,
-    });
-
-    return result;
-  },
-});
+//
+// The `sendMessage` action lives in `convex/ai.ts` (a `"use node"` file) so the
+// `openai` client and `@openai/agents` SDK run in the Convex Node runtime. It
+// calls the queries and mutations above via `ctx.runQuery` / `ctx.runMutation`.

@@ -1,32 +1,21 @@
-// lib/ai/orchestrator.ts — Multi-agent orchestration using OpenAI Agents SDK
+// lib/ai/orchestrator.ts — Multi-agent orchestration using the OpenAI Agents SDK.
 // Uses a triage agent with specialist handoffs:
 //   Triage → Education Agent | Analyze Agent | Action Agent
 //
-// The GeminiModelProvider bypasses the `openai` npm package to avoid
-// Convex runtime restrictions (URL.username setter not implemented).
+// Gemini is driven through the SDK's built-in provider: a real `openai` client
+// pointed at Gemini's OpenAI-compatible endpoint, in chat-completions mode.
+// This module is only imported from `convex/ai.ts` ("use node"), so the SDK and
+// the `openai` package run in the Convex Node runtime with no shims.
 
-// Polyfill CustomEvent — the SDK's browser shim uses it for internal
-// event dispatching, but the Convex action runtime lacks this DOM global.
-if (typeof globalThis.CustomEvent === "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).CustomEvent = class CustomEvent extends Event {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    detail: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(
-      type: string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      params?: { detail?: any; bubbles?: boolean; cancelable?: boolean },
-    ) {
-      super(type, params);
-      this.detail = params?.detail ?? null;
-    }
-  };
-}
-
-import { Agent, Runner } from "@openai/agents";
+import OpenAI from "openai";
+import {
+  Agent,
+  Runner,
+  setDefaultOpenAIClient,
+  setOpenAIAPI,
+  setTracingDisabled,
+} from "@openai/agents";
 import type { AgentInputItem, RunContext } from "@openai/agents";
-import { GeminiModelProvider } from "./gemini-provider";
 import { buildBasePrompt } from "./prompts/base";
 import { LITERACY_PROMPT } from "./prompts/literacy";
 import { buildAnalysisPrompt } from "./prompts/analysis";
@@ -35,6 +24,20 @@ import {
   buildFinancialContext,
   formatContextForPrompt,
 } from "./context-builder";
+
+// ─── Model provider configuration ───────────────────────────────────────────────
+
+/** Gemini model id. Free tier, cheapest current Flash-Lite. Swap in one place. */
+const MODEL = "gemini-2.5-flash-lite";
+
+setTracingDisabled(true);
+setOpenAIAPI("chat_completions");
+setDefaultOpenAIClient(
+  new OpenAI({
+    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+  }),
+);
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -80,7 +83,7 @@ function buildAgents(): Agent<AgentContext> {
       const base = buildBasePrompt(ctx.context.preferredLanguage);
       return `${base}\n\n${LITERACY_PROMPT}`;
     },
-    model: "gemini-2.0-flash",
+    model: MODEL,
   });
 
   const analyzeAgent = new Agent<AgentContext>({
@@ -97,7 +100,7 @@ function buildAgents(): Agent<AgentContext> {
 
       return `${base}\n\nNote: Financial data is not available yet. Tell the user their data may not be loaded and suggest they add some transactions first.`;
     },
-    model: "gemini-2.0-flash",
+    model: MODEL,
   });
 
   const actionAgent = new Agent<AgentContext>({
@@ -108,7 +111,7 @@ function buildAgents(): Agent<AgentContext> {
       const base = buildBasePrompt(ctx.context.preferredLanguage);
       return `${base}\n\n${ACTION_PROMPT}`;
     },
-    model: "gemini-2.0-flash",
+    model: MODEL,
   });
 
   // ── Triage agent — routes to the appropriate specialist ──────────────────
@@ -134,7 +137,7 @@ ${langNote}
 Route to the correct agent based on the user's intent.`;
     },
     handoffs: [educationAgent, analyzeAgent, actionAgent],
-    model: "gemini-2.0-flash",
+    model: MODEL,
   });
 
   return triageAgent;
@@ -192,18 +195,13 @@ export async function orchestrate(
   apiRef: any,
 ): Promise<OrchestratorResult> {
   try {
-    // 1. Configure Gemini via its OpenAI-compatible endpoint
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
+    // 1. Gemini is configured at module load via setDefaultOpenAIClient(). Guard
+    //    against a missing key here so the failure is explicit.
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       throw new Error(
         "GOOGLE_GENERATIVE_AI_API_KEY not set. Set it in Convex deployment environment variables.",
       );
     }
-    const geminiProvider = new GeminiModelProvider({
-      apiKey,
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      defaultModel: "gemini-2.0-flash",
-    });
 
     // 2. Convert conversation history to the SDK's input format
     const history = toAgentInput(input.conversationHistory.slice(-10));
@@ -224,11 +222,9 @@ export async function orchestrate(
     };
     const triageAgent = buildAgents();
 
-    // 5. Run the multi-agent pipeline via a Runner with Gemini provider + tracing disabled
-    const runner = new Runner({
-      modelProvider: geminiProvider,
-      tracingDisabled: true,
-    });
+    // 5. Run the multi-agent pipeline. The Runner uses the default provider,
+    //    which is the Gemini-backed OpenAI client configured at module load.
+    const runner = new Runner({ tracingDisabled: true });
     const result = await runner.run(
       triageAgent,
       [...history, { role: "user" as const, content: input.userMessage }],
@@ -249,7 +245,7 @@ export async function orchestrate(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("AI orchestration error:", message);
+    console.error("AI orchestration error:", err);
 
     // Return a user-friendly error message in the user's language
     const errorContent =
