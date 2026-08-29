@@ -5,8 +5,8 @@ import {
   Geist,
   Geist_Mono,
   Manrope,
-  Noto_Naskh_Arabic,
   Noto_Nastaliq_Urdu,
+  Noto_Sans_Arabic,
 } from "next/font/google";
 import "./globals.css";
 
@@ -20,10 +20,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const notoNaskhArabic = Noto_Naskh_Arabic({
-  variable: "--font-noto-naskh-arabic",
+// UI font — Noto Sans Arabic (variable). Crisp, dense-friendly, full Urdu coverage.
+const notoSansArabic = Noto_Sans_Arabic({
+  variable: "--font-noto-sans-arabic",
   subsets: ["arabic"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -34,6 +34,7 @@ const manrope = Manrope({
   display: "swap",
 });
 
+// Reading font — Noto Nastaliq Urdu. Used for AI replies + the assistant greeting.
 const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
   variable: "--font-noto-nastaliq-urdu",
   subsets: ["arabic"],
@@ -53,9 +54,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="ur"
       dir="rtl"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${notoSansArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-[var(--font-noto-naskh-arabic)] bg-[#F7F4EC] text-[#14231B]">
+      <body className="min-h-full flex flex-col bg-[#F7F4EC] text-[#14231B]">
         <ClerkProvider appearance={shadcn}>{children}</ClerkProvider>
       </body>
     </html>

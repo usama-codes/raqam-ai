@@ -102,14 +102,14 @@ export default function AssistantPage() {
           {/* ── Empty state — no messages yet ── */}
           {!loading && !error && messages.length === 0 && (
             <div className="flex flex-1 flex-col items-center justify-center gap-6 py-12">
-              <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-[#0F5132] text-[28px] text-[#E8B931]">
+              <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-[#0F5132] font-[var(--font-noto-nastaliq-urdu)] text-[28px] text-[#E8B931]">
                 ر
               </div>
               <div className="flex flex-col items-center gap-2 text-center">
-                <h2 className="text-[20px] font-bold">
+                <h2 className="text-[22px] font-bold font-[var(--font-nastaliq)] leading-[1.9]">
                   {t("assistant.greeting")}
                 </h2>
-                <p className="max-w-md text-[15px] leading-[2.1] text-[#6B7A70]">
+                <p className="max-w-md text-[15px] font-reading text-[#6B7A70]">
                   {t("assistant.greetingDesc")}
                 </p>
               </div>
@@ -176,7 +176,7 @@ export default function AssistantPage() {
                         </span>
                       </div>
                     )}
-                    <div className="rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-[18px] text-[16px] leading-[2.1]">
+                    <div className="rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-[14px] text-[16px] font-reading">
                       {msg.content}
                     </div>
                   </div>
