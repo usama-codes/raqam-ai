@@ -29,7 +29,7 @@ export default function DashboardPage() {
     loading: budgetLoading,
     error: budgetError,
   } = useBudgets();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const loading = summaryLoading || goalsLoading || budgetLoading;
   const hasError = summaryError || goalsError || budgetError;
@@ -285,7 +285,12 @@ export default function DashboardPage() {
                     return (
                       <div key={b.id} className="flex flex-col gap-1.5">
                         <div className="flex justify-between text-[14px]">
-                          <span>{b.categoryId}</span>
+                          <span>
+                            {b.categoryIcon}{" "}
+                            {language === "ur"
+                              ? b.categoryNameUr
+                              : b.categoryName}
+                          </span>
                           <span
                             className="font-[var(--font-manrope)]"
                             style={{ color }}

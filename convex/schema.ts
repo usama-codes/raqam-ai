@@ -196,4 +196,30 @@ export default defineSchema({
     ),
     createdAt: v.number(),
   }).index("by_conversationId", ["conversationId"]),
+
+  // ─── Pending Actions (Phase 9 — AI confirmation gate) ──────────────────────
+  pendingActions: defineTable({
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    actionType: v.union(
+      v.literal("createTransaction"),
+      v.literal("deleteTransaction"),
+      v.literal("createSavingsGoal"),
+    ),
+    // JSON-encoded action parameters (decoded server-side on confirmation)
+    parameters: v.string(),
+    userFacingMessage: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("rejected"),
+      v.literal("executed"),
+      v.literal("failed"),
+    ),
+    resultMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_conversationId", ["conversationId"]),
 });

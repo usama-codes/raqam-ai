@@ -266,6 +266,28 @@ export const ur = {
   "assistant.intentAct": "ACT · تصدیق درکار ہے",
   "assistant.voiceLabel": "آواز",
 
+  // Assistant — Action confirmation (Phase 9)
+  "assistant.actionProposed": "تجویز کردہ عمل",
+  "assistant.actionConfirm": "تصدیق کریں",
+  "assistant.actionReject": "مسترد کریں",
+  "assistant.actionConfirming": "تصدیق ہو رہی ہے…",
+  "assistant.actionRejecting": "مسترد ہو رہا ہے…",
+  "assistant.actionExecuted": "✓ مکمل",
+  "assistant.actionRejected": "مسترد",
+  "assistant.actionFailed": "ناکام",
+  "assistant.actionAmount": "رقم",
+  "assistant.actionType": "قسم",
+
+  // ─── Chat history panel ──────────────────────────────────────────────────────
+  "assistant.newChat": "نئی گفتگو",
+  "assistant.chatHistory": "پچھلی گفتگوئیں",
+  "assistant.noChats": "ابھی کوئی گفتگو نہیں",
+  "assistant.deleteChat": "حذف کریں",
+  "assistant.today": "آج",
+  "assistant.yesterday": "کل",
+  "assistant.earlier": "پرانے",
+  "assistant.untitled": "بغیر عنوان",
+
   // ─── Settings ─────────────────────────────────────────────────────────────────
   "settings.title": "ترتیبات",
   "settings.subtitle": "زبان، اطلاعات اور ڈیٹا",

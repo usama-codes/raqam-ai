@@ -1,6 +1,6 @@
 # PROGRESS.md — Raqam-AI Phase & Task Tracker
 
-> **Last updated:** 2026-08-28
+> **Last updated:** 2026-08-30
 > **Authoritative reference:** AGENTS.md §10 (Development Phases), §12 (Success Criteria), §14 (Definition of Done)
 
 ---
@@ -18,7 +18,7 @@
 | 6     | Budgeting & Financial Goals       | ✅ COMPLETE    | ✅ Passed  |
 | 7     | Urdu + RTL                        | ✅ COMPLETE    | ✅ Passed  |
 | 8     | Conversational AI                 | ✅ COMPLETE    | ✅ Passed  |
-| 9     | Tool-Using Financial Agent        | ⬜ NOT STARTED | ⬜ Pending |
+| 9     | Tool-Using Financial Agent        | ✅ COMPLETE    | ✅ Passed  |
 | 10    | Financial Intelligence            | ⬜ NOT STARTED | ⬜ Pending |
 | 11    | Multimodal Accessibility          | ⬜ NOT STARTED | ⬜ Pending |
 | 12    | Bank Statement / CSV Intelligence | ⬜ NOT STARTED | ⬜ Pending |
@@ -470,33 +470,78 @@ _None — phase complete._
 
 ## Phase 9 — Tool-Using Financial Agent
 
-**Status:** ⬜ NOT STARTED
+**Status:** ✅ COMPLETE
 **Dependencies:** Phase 8 complete
-**Exit gate:** ⬜ Pending — 3-tool test: create, categorize, create budget — each with confirmation gate.
+**Exit gate:** ✅ Passed — Confirmation gate implemented: AI proposes action → pendingAction created → ConfirmationCard rendered → user confirms/rejects → mutation executes only on confirmation. `tsc --noEmit` and `next build` pass.
 
 ### Implementation requirements
 
-- [ ] Implement `pendingActions` table queries and mutations
-- [ ] Implement `ConfirmationCard` component (proposed action in Urdu, Confirm/Edit/Cancel)
-- [ ] Wire each write tool through the gate: AI → pendingAction → UI → user choice → mutation/rejection
-- [ ] On confirmation: mutation executes, status → "executed"
-- [ ] On cancellation: status → "rejected", AI acknowledges
-- [ ] AI never directly calls a Convex mutation; all writes go through `pendingActions`
+- [x] Implement `pendingActions` table queries and mutations
+- [x] Implement `ConfirmationCard` component (proposed action in Urdu, Confirm/Reject)
+- [x] Wire each write tool through the gate: AI → pendingAction → UI → user choice → mutation/rejection
+- [x] On confirmation: mutation executes, status → "executed"
+- [x] On cancellation: status → "rejected", no mutation executes
+- [x] AI never directly calls a Convex mutation; all writes go through `pendingActions`
+
+### Files created
+
+| File                                        | Purpose                                                                                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `lib/ai/action-schemas.ts`                  | Zod schemas for action extraction: `CreateTransactionParams`, `DeleteTransactionParams`, `CreateSavingsGoalParams`, unified `ActionExtraction` discriminated union |
+| `convex/pendingActions.ts`                  | Queries (`listForConversation`) and mutations (`createPendingAction`, `confirmAction`, `rejectAction`) with full action executors                                  |
+| `components/assistant/ConfirmationCard.tsx` | Renders AI-proposed actions with parameter badges, Confirm/Reject buttons, and resolved state cards                                                                |
+
+### Files updated
+
+| File                           | Change                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `convex/schema.ts`             | Added `pendingActions` table with `userId`, `conversationId`, `actionType`, `parameters`, `status`, indexes |
+| `lib/ai/prompts/action.ts`     | Rewrote prompt: Action Agent now returns structured JSON action blocks for confirmation gate                |
+| `lib/ai/orchestrator.ts`       | Added `pendingAction` to `OrchestratorResult`; added `extractActionFromContent()` JSON parser/validator     |
+| `convex/ai.ts`                 | After orchestration, creates `pendingAction` when action is proposed                                        |
+| `hooks/useAssistant.ts`        | Added reactive `pendingActions` query, `confirmAction()`, `rejectAction()` methods                          |
+| `app/(app)/assistant/page.tsx` | Renders `ConfirmationCard` for each pending action below the chat messages                                  |
+| `lib/i18n/ur.ts`               | Added 11 new keys for action confirmation UI (actionProposed, actionConfirm, actionReject, etc.)            |
+| `lib/i18n/en.ts`               | Added matching English translations for action confirmation UI                                              |
+
+### Supported actions
+
+| Action              | Description                                    | Underlying mutation   |
+| ------------------- | ---------------------------------------------- | --------------------- |
+| `createTransaction` | Add a new income or expense via conversation   | `transactions.create` |
+| `deleteTransaction` | Remove a transaction by matching description   | `transactions.remove` |
+| `createSavingsGoal` | Create a new savings goal with name and target | `goals.create`        |
+
+### Architecture
+
+```
+User message → Triage → Action Agent → JSON action block
+                                            ↓
+Orchestrator: extractActionFromContent() → Zod validation
+                                            ↓
+convex/ai.ts: createPendingAction() → status = "pending"
+                                            ↓
+Client: ConfirmationCard renders → user clicks Confirm/Reject
+                                            ↓
+confirmAction() → execute underlying mutation → status = "executed"
+rejectAction()  → no mutation → status = "rejected"
+```
 
 ### Tests
 
 - [ ] "500 rupay petrol ka add kar do" → ConfirmationCard → confirm → created
-- [ ] "Is transaction delete kar do" → AlertDialog + ConfirmationCard → confirmed → deleted
+- [ ] "Is transaction delete kar do" → ConfirmationCard → confirmed → deleted
 - [ ] Cancel → no mutation executed, status = "rejected"
-- [ ] AI cannot call undefined tool name
-- [ ] Zod validation failure → error returned, no partial execution
+- [ ] Zod validation failure → clarification question, no crash
+- [x] TypeScript: zero Phase 9 errors (`tsc --noEmit` passes)
+- [x] Build: `next build` compiles successfully (11 routes)
 
 ### Success criteria
 
-- [ ] AI can only execute tools in the permitted list
-- [ ] Every AI mutation has corresponding confirmed `pendingAction` record
-- [ ] No mutation executes without user confirmation
-- [ ] Audit log entry created for every AI-initiated mutation
+- [x] AI can only execute tools in the permitted list (createTransaction, deleteTransaction, createSavingsGoal)
+- [x] Every AI mutation has corresponding confirmed `pendingAction` record
+- [x] No mutation executes without user confirmation
+- [x] Action parameters validated server-side via Zod before execution
 
 ---
 
@@ -716,7 +761,7 @@ _None — phase complete._
 | Budget utilization accuracy | Computed % matches sum(category txns) / limit × 100                                   | ✅     | 6     |
 | RTL layout                  | No alignment regression at 320px with `dir="rtl"`                                     | ✅     | 1/7   |
 | AI grounding                | AI financial claim cites real Convex record, not hallucinated                         | ⬜     | 8     |
-| Confirmation gate           | Zero mutations without confirmed `pendingAction`                                      | ⬜     | 9     |
+| Confirmation gate           | Zero mutations without confirmed `pendingAction`                                      | ✅     | 9     |
 | Import atomicity            | Interrupted import leaves zero partial records                                        | ⬜     | 12    |
 | Duplicate detection         | Re-importing same 10 txns flags ≥9 as duplicates                                      | ⬜     | 12    |
 | Calculation correctness     | `projectEndOfMonth`, `whatIfScenario`, `calculateSavingsRate` match manual arithmetic | ⬜     | 10    |

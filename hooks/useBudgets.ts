@@ -19,6 +19,9 @@ interface RawBudgetCategoryDoc {
   categoryId: string;
   limit: number;
   spent: number;
+  categoryName: string;
+  categoryNameUr: string;
+  categoryIcon: string;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -35,6 +38,9 @@ export interface BudgetCategory {
   categoryId: string;
   limit: number;
   spent: number;
+  categoryName: string;
+  categoryNameUr: string;
+  categoryIcon: string;
 }
 
 // ─── Hook return type ────────────────────────────────────────────────────────────
@@ -89,6 +95,9 @@ export function useBudgets(month?: number): UseBudgetsReturn {
       categoryId: bc.categoryId,
       limit: bc.limit,
       spent: bc.spent,
+      categoryName: bc.categoryName ?? "Unknown",
+      categoryNameUr: bc.categoryNameUr ?? "نامعلوم",
+      categoryIcon: bc.categoryIcon ?? "📦",
     }));
   }, [rawBudgetCategories]);
 

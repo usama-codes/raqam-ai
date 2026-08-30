@@ -6,12 +6,31 @@ import type { InputMode } from "@/hooks/useAssistant";
 import { useLanguage } from "@/components/LanguageProvider";
 import { ErrorState } from "@/components/shared/DataStates";
 import { MarkdownMessage } from "@/components/assistant/MarkdownMessage";
+import { ConfirmationCard } from "@/components/assistant/ConfirmationCard";
+import { ChatHistoryPanel } from "@/components/assistant/ChatHistoryPanel";
+import { isLatinScript } from "@/lib/utils";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 export default function AssistantPage() {
-  const { messages, loading, sending, error, sendMessage } = useAssistant();
+  const {
+    conversations,
+    messages,
+    pendingActions,
+    currentConversationId,
+    loading,
+    sending,
+    error,
+    sendMessage,
+    startNewConversation,
+    switchConversation,
+    deleteConversation,
+    confirmAction,
+    rejectAction,
+  } = useAssistant();
   const { t } = useLanguage();
 
   const [input, setInput] = React.useState("");
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -55,11 +74,41 @@ export default function AssistantPage() {
 
   return (
     <div className="flex min-h-[calc(100vh)] flex-row">
+      {/* ── Chat history sidebar ── */}
+      <aside
+        className={`hidden shrink-0 flex-col overflow-hidden border-s border-[#E7E2D6] bg-white transition-[width] duration-200 ease-in-out md:flex ${
+          sidebarOpen ? "w-[260px]" : "w-0 border-s-0"
+        }`}
+      >
+        <div className="min-w-[260px]">
+          <ChatHistoryPanel
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onNewChat={startNewConversation}
+            onSwitch={switchConversation}
+            onDelete={deleteConversation}
+            disabled={sending}
+          />
+        </div>
+      </aside>
+
       {/* ── Chat area ── */}
       <div className="flex min-w-0 flex-1 flex-col bg-[#F7F4EC]">
         {/* Chat header */}
         <header className="flex items-center justify-between border-b border-[#E7E2D6] bg-white px-6 py-5 sm:px-8">
           <div className="flex items-center gap-3">
+            {/* Sidebar toggle */}
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="hidden h-9 w-9 place-items-center rounded-[10px] text-[#6B7A70] transition-colors hover:bg-[#F1EEE4] hover:text-[#0F5132] md:grid"
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-[18px] w-[18px]" />
+              ) : (
+                <PanelLeftOpen className="h-[18px] w-[18px]" />
+              )}
+            </button>
             <span className="grid h-[38px] w-[38px] place-items-center rounded-[11px] bg-[#0F5132] pb-1 font-[var(--font-noto-nastaliq-urdu)] text-[17px] text-[#E8B931]">
               ر
             </span>
@@ -136,8 +185,17 @@ export default function AssistantPage() {
                 className={`flex max-w-[78%] flex-col gap-1.5 ${msg.role === "user" ? "self-start" : "self-end"}`}
               >
                 {msg.role === "user" ? (
-                  <div className="flex max-w-[66%] flex-col gap-1.5 self-start">
-                    <div className="flex items-center gap-2.5 rounded-[16px_16px_16px_4px] bg-[#0F5132] px-[18px] py-3.5 text-[16px] leading-[2] text-[#EAF1EB]">
+                  <div
+                    className="flex max-w-[66%] flex-col gap-1.5 self-start"
+                    dir={isLatinScript(msg.content) ? "ltr" : "rtl"}
+                  >
+                    <div
+                      className={`flex items-center gap-2.5 rounded-[16px_16px_16px_4px] px-[18px] py-3.5 text-[16px] ${
+                        isLatinScript(msg.content)
+                          ? "bg-[#0F5132] leading-[1.7] text-[#EAF1EB]"
+                          : "bg-[#0F5132] leading-[2] text-[#EAF1EB]"
+                      }`}
+                    >
                       {msg.inputMode === "voice" && (
                         <span className="rounded-full bg-white/15 px-2.5 py-1 text-[13px]">
                           {t("assistant.voiceLabel")}
@@ -177,7 +235,14 @@ export default function AssistantPage() {
                         </span>
                       </div>
                     )}
-                    <div className="rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-4 text-[16px] font-reading">
+                    <div
+                      className={`rounded-[16px_16px_4px_16px] border border-[#E7E2D6] bg-white px-5 py-4 text-[16px] ${
+                        isLatinScript(msg.content)
+                          ? "leading-[1.7]"
+                          : "font-reading"
+                      }`}
+                      dir={isLatinScript(msg.content) ? "ltr" : "rtl"}
+                    >
                       <MarkdownMessage content={msg.content} />
                     </div>
                   </div>
@@ -206,6 +271,18 @@ export default function AssistantPage() {
               </div>
             </div>
           )}
+
+          {/* Pending action confirmation cards */}
+          {!loading &&
+            pendingActions.map((action) => (
+              <ConfirmationCard
+                key={action.id}
+                action={action}
+                onConfirm={confirmAction}
+                onReject={rejectAction}
+                disabled={sending}
+              />
+            ))}
         </div>
 
         {/* Input area */}
@@ -255,29 +332,6 @@ export default function AssistantPage() {
           </span>
         </div>
       </div>
-
-      {/* ── Right sidebar panel ── */}
-      <aside className="hidden w-[340px] shrink-0 flex-col gap-[18px] overflow-y-auto border-l border-[#E7E2D6] bg-white p-6 xl:flex">
-        {/* Context */}
-        <div className="flex flex-col gap-2.5">
-          <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#8A9690]">
-            {t("assistant.contextLabel")}
-          </span>
-          <p className="mt-1.5 text-[13px] leading-[1.9] text-[#8A9690]">
-            {t("assistant.contextDesc")}
-          </p>
-        </div>
-
-        {/* Guardrail */}
-        <div className="flex flex-col gap-2 rounded-[14px] border border-[#E7E2D6] bg-[#FBF9F4] p-4">
-          <span className="font-[var(--font-manrope)] text-[11px] tracking-[.16em] text-[#B3261E]">
-            {t("assistant.guardrailLabel")}
-          </span>
-          <p className="text-[13px] leading-[1.95] text-[#4C5A52]">
-            {t("assistant.guardrailDesc")}
-          </p>
-        </div>
-      </aside>
     </div>
   );
 }

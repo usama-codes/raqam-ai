@@ -50,8 +50,17 @@ export const getBudgetCategories = query({
     monthEnd.setMonth(monthEnd.getMonth() + 1);
     const monthEndMs = monthEnd.getTime();
 
+    // Resolve category details for display (name, nameUr, icon)
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+    const categoryMap = new Map(categories.map((c) => [c._id, c]));
+
     const result = [];
     for (const bc of budgetCats) {
+      const cat = categoryMap.get(bc.categoryId);
+
       // Sum transactions for this category in this budget month
       const transactions = await ctx.db
         .query("transactions")
@@ -67,7 +76,13 @@ export const getBudgetCategories = query({
         )
         .reduce((sum, t) => sum + t.amount, 0);
 
-      result.push({ ...bc, spent });
+      result.push({
+        ...bc,
+        spent,
+        categoryName: cat?.name ?? "Unknown",
+        categoryNameUr: cat?.nameUr ?? "نامعلوم",
+        categoryIcon: cat?.icon ?? "📦",
+      });
     }
 
     return result;

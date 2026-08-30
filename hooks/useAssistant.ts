@@ -4,6 +4,8 @@ import * as React from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
+import type { ActionType } from "@/lib/ai/action-schemas";
+
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 export type MessageRole = "user" | "assistant";
@@ -28,9 +30,19 @@ export interface Conversation {
 
 // ─── Hook return type ────────────────────────────────────────────────────────────
 
+export interface PendingActionData {
+  id: string;
+  actionType: ActionType;
+  parameters: string;
+  userFacingMessage: string;
+  status: "pending" | "confirmed" | "rejected" | "executed" | "failed";
+  resultMessage?: string;
+}
+
 export interface UseAssistantReturn {
   conversations: Conversation[];
   messages: ChatMessage[];
+  pendingActions: PendingActionData[];
   currentConversationId: string | null;
   loading: boolean;
   sending: boolean;
@@ -38,6 +50,9 @@ export interface UseAssistantReturn {
   sendMessage: (content: string, mode?: InputMode) => Promise<void>;
   startNewConversation: () => Promise<void>;
   switchConversation: (id: string) => void;
+  deleteConversation: (id: string) => Promise<void>;
+  confirmAction: (actionId: string) => Promise<void>;
+  rejectAction: (actionId: string) => Promise<void>;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────────
@@ -87,19 +102,56 @@ export function useAssistant(): UseAssistantReturn {
       }>
     | undefined;
 
+  // Query pending actions for the current conversation (reactive)
+  const rawPendingActions = useQuery(
+    effectiveConversationId
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (api as any).pendingActions.listForConversation
+      : "skip",
+    effectiveConversationId
+      ? { conversationId: effectiveConversationId as never }
+      : "skip",
+  ) as
+    | Array<{
+        _id: string;
+        actionType: ActionType;
+        parameters: string;
+        userFacingMessage: string;
+        status: "pending" | "confirmed" | "rejected" | "executed" | "failed";
+        resultMessage?: string;
+        createdAt: number;
+      }>
+    | undefined;
+
   // Mutations and actions
   const createConversation = useMutation(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api as any).conversations.createConversation,
   );
+  const deleteConversationMutation = useMutation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (api as any).conversations.deleteConversation,
+  );
   const sendMessageAction = useAction(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (api as any).ai.sendMessage,
+  );
+  const confirmActionMutation = useMutation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (api as any).pendingActions.confirmAction,
+  );
+  const rejectActionMutation = useMutation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (api as any).pendingActions.rejectAction,
   );
 
   // State
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<Error | null>(null);
+  // Optimistic messages — shown immediately while the server round-trip completes
+  const [optimisticMessages, setOptimisticMessages] = React.useState<
+    ChatMessage[]
+  >([]);
 
   // Transform data
   const conversations: Conversation[] = React.useMemo(() => {
@@ -113,21 +165,63 @@ export function useAssistant(): UseAssistantReturn {
   }, [rawConversations]);
 
   const messages: ChatMessage[] = React.useMemo(() => {
-    if (!rawMessages) return [];
-    return rawMessages.map((m) => ({
-      id: m._id,
-      role: m.role,
-      content: m.content,
-      inputMode: m.inputMode,
-      intentType: m.intentType,
-      createdAt: m.createdAt,
+    const serverMessages = rawMessages
+      ? rawMessages.map((m) => ({
+          id: m._id,
+          role: m.role,
+          content: m.content,
+          inputMode: m.inputMode,
+          intentType: m.intentType,
+          createdAt: m.createdAt,
+        }))
+      : [];
+
+    if (optimisticMessages.length === 0) return serverMessages;
+
+    // Merge: keep optimistic messages that haven't been confirmed by the server yet.
+    // A server message "confirms" an optimistic one if it has the same role + content.
+    const serverContents = new Set(
+      serverMessages.map((m) => `${m.role}:${m.content}`),
+    );
+    const pendingOptimistic = optimisticMessages.filter(
+      (o) => !serverContents.has(`${o.role}:${o.content}`),
+    );
+
+    // Clear optimistic messages if all have been confirmed
+    if (pendingOptimistic.length !== optimisticMessages.length) {
+      // Defer state update to avoid updating during render
+      queueMicrotask(() => setOptimisticMessages(pendingOptimistic));
+    }
+
+    return [...serverMessages, ...pendingOptimistic];
+  }, [rawMessages, optimisticMessages]);
+
+  const pendingActions: PendingActionData[] = React.useMemo(() => {
+    if (!rawPendingActions) return [];
+    return rawPendingActions.map((a) => ({
+      id: a._id,
+      actionType: a.actionType,
+      parameters: a.parameters,
+      userFacingMessage: a.userFacingMessage,
+      status: a.status,
+      resultMessage: a.resultMessage,
     }));
-  }, [rawMessages]);
+  }, [rawPendingActions]);
 
   // Send message
   const sendMessage = React.useCallback(
     async (content: string, mode?: InputMode): Promise<void> => {
       if (!content.trim()) return;
+
+      // Show the user's message immediately (optimistic update)
+      const optimisticMsg: ChatMessage = {
+        id: `optimistic-${Date.now()}`,
+        role: "user",
+        content,
+        inputMode: mode ?? "text",
+        createdAt: Date.now(),
+      };
+      setOptimisticMessages((prev) => [...prev, optimisticMsg]);
 
       setSending(true);
       setError(null);
@@ -154,6 +248,10 @@ export function useAssistant(): UseAssistantReturn {
         setError(
           err instanceof Error ? err : new Error("Failed to send message"),
         );
+        // Remove the optimistic message on failure
+        setOptimisticMessages((prev) =>
+          prev.filter((m) => m.id !== optimisticMsg.id),
+        );
       } finally {
         setSending(false);
       }
@@ -163,18 +261,64 @@ export function useAssistant(): UseAssistantReturn {
 
   // Start new conversation
   const startNewConversation = React.useCallback(async (): Promise<void> => {
+    setOptimisticMessages([]);
     const convId = (await createConversation({})) as string;
     setCurrentConversationId(convId);
   }, [createConversation]);
 
   // Switch conversation
   const switchConversation = React.useCallback((id: string): void => {
+    setOptimisticMessages([]);
     setCurrentConversationId(id);
   }, []);
+
+  // Confirm action
+  const confirmAction = React.useCallback(
+    async (actionId: string): Promise<void> => {
+      try {
+        await confirmActionMutation({ actionId: actionId as never });
+      } catch (err) {
+        console.error("Failed to confirm action:", err);
+        throw err;
+      }
+    },
+    [confirmActionMutation],
+  );
+
+  // Reject action
+  const rejectAction = React.useCallback(
+    async (actionId: string): Promise<void> => {
+      try {
+        await rejectActionMutation({ actionId: actionId as never });
+      } catch (err) {
+        console.error("Failed to reject action:", err);
+        throw err;
+      }
+    },
+    [rejectActionMutation],
+  );
+
+  // Delete conversation
+  const deleteConversation = React.useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await deleteConversationMutation({ conversationId: id as never });
+        // If the deleted conversation was the current one, clear selection
+        if (currentConversationId === id) {
+          setCurrentConversationId(null);
+        }
+      } catch (err) {
+        console.error("Failed to delete conversation:", err);
+        throw err;
+      }
+    },
+    [deleteConversationMutation, currentConversationId],
+  );
 
   return {
     conversations,
     messages,
+    pendingActions,
     currentConversationId: effectiveConversationId,
     loading: rawConversations === undefined,
     sending,
@@ -182,5 +326,8 @@ export function useAssistant(): UseAssistantReturn {
     sendMessage,
     startNewConversation,
     switchConversation,
+    deleteConversation,
+    confirmAction,
+    rejectAction,
   };
 }

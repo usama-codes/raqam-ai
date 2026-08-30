@@ -24,6 +24,10 @@ import {
   buildFinancialContext,
   formatContextForPrompt,
 } from "./context-builder";
+import {
+  ActionExtraction,
+  type ActionExtractionResult,
+} from "./action-schemas";
 
 // ─── Model provider configuration ───────────────────────────────────────────────
 
@@ -50,6 +54,12 @@ export interface OrchestratorInput {
 export interface OrchestratorResult {
   content: string;
   intentType: "educate" | "analyze" | "recommend" | "act";
+  /** Extracted action data when intent = "act" and a valid JSON block was found */
+  pendingAction?: {
+    actionType: ActionExtractionResult["action"];
+    parameters: string;
+    userFacingMessage: string;
+  };
   error?: string;
 }
 
@@ -106,10 +116,13 @@ function buildAgents(): Agent<AgentContext> {
   const actionAgent = new Agent<AgentContext>({
     name: "Action Agent",
     handoffDescription:
-      "Handles requests to create, edit, or delete financial records — adding transactions, creating budgets.",
+      "Handles requests to create, edit, or delete financial records — adding transactions, creating budgets, deleting transactions, creating savings goals.",
     instructions: (ctx: RunContext<AgentContext>) => {
       const base = buildBasePrompt(ctx.context.preferredLanguage);
-      return `${base}\n\n${ACTION_PROMPT}`;
+      // Inject current date into the action prompt template
+      const today = new Date().toISOString().split("T")[0];
+      const actionPrompt = ACTION_PROMPT.replace("{{CURRENT_DATE}}", today);
+      return `${base}\n\n${actionPrompt}`;
     },
     model: MODEL,
   });
@@ -121,7 +134,19 @@ function buildAgents(): Agent<AgentContext> {
     instructions: (ctx: RunContext<AgentContext>) => {
       const langNote =
         ctx.context.preferredLanguage === "ur"
-          ? 'The user speaks Urdu. Classify Urdu and Roman Urdu messages carefully — "kitna kharch hua?" is an analyze intent, "inflation kya hai?" is educate, "500 ka petrol add karo" is act.'
+          ? `The user speaks Urdu. Classify Urdu and Roman Urdu messages carefully.
+Roman Urdu = Urdu words typed in English letters. It is VERY common. Examples:
+- "kitna kharch hua?" → analyze
+- "inflation kya hai?" → educate
+- "committee kya hoti hai?" → educate
+- "500 ka petrol add karo" → act
+- "mujhe budget banana hai" → act
+- "is mahine ka analysis dikhao" → analyze
+- "meri savings kitni hai?" → analyze
+- "kharcha delete karo" → act
+- "savings goal banaye" → act
+
+Most Latin-script messages from Urdu-preference users are Roman Urdu, not English.`
           : "The user speaks English.";
 
       return `You are an intent router for a Pakistani financial assistant app called Raqam-AI.
@@ -144,6 +169,46 @@ Route to the correct agent based on the user's intent.`;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Extract a JSON action block from the AI response text.
+ * The Action Agent wraps proposed actions in ```json ... ``` code fences.
+ * Returns the parsed action data and the remaining clean text, or null if
+ * no valid JSON block is found (e.g. the AI asked a clarification question).
+ */
+function extractActionFromContent(content: string): {
+  pendingAction: NonNullable<OrchestratorResult["pendingAction"]>;
+  cleanContent: string;
+} | null {
+  // Match ```json ... ``` or ``` ... ``` blocks
+  const jsonBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
+  const match = content.match(jsonBlockRegex);
+  if (!match) return null;
+
+  try {
+    const raw = JSON.parse(match[1]);
+    const parsed = ActionExtraction.safeParse(raw);
+    if (!parsed.success) {
+      console.warn("Action extraction validation failed:", parsed.error.issues);
+      return null;
+    }
+
+    // Strip the JSON block from the content — the userFacingMessage replaces it
+    const cleanContent = content.replace(match[0], "").trim();
+
+    return {
+      pendingAction: {
+        actionType: parsed.data.action,
+        parameters: JSON.stringify(parsed.data.params),
+        userFacingMessage: raw.userFacingMessage ?? "",
+      },
+      cleanContent,
+    };
+  } catch {
+    console.warn("Failed to parse JSON action block from AI response");
+    return null;
+  }
+}
 
 /**
  * Convert our stored conversation history into the SDK's AgentInputItem format.
@@ -239,9 +304,28 @@ export async function orchestrate(
       ? agentNameToIntent(result.lastAgent.name)
       : "educate";
 
+    let content = result.finalOutput ?? "";
+    let pendingAction: OrchestratorResult["pendingAction"];
+
+    // 7. For "act" intent, extract the JSON action block from the response
+    if (intentType === "act") {
+      const extracted = extractActionFromContent(content);
+      if (extracted) {
+        pendingAction = extracted.pendingAction;
+        // Replace the raw content with the user-facing message from the action
+        if (extracted.cleanContent) {
+          content = extracted.cleanContent;
+        } else {
+          content = extracted.pendingAction.userFacingMessage;
+        }
+      }
+      // If no JSON block found, content stays as-is (clarification question)
+    }
+
     return {
-      content: result.finalOutput ?? "",
+      content,
       intentType,
+      pendingAction,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

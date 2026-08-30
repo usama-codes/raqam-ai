@@ -20,7 +20,8 @@ import { orchestrate } from "@/lib/ai/orchestrator";
  * 2. Fetch conversation history for context
  * 3. Run AI orchestrator (classify intent → build context → generate response)
  * 4. Save assistant response to Convex
- * 5. Return the response to the client
+ * 5. If action proposed, create pendingAction for confirmation gate
+ * 6. Return the response to the client
  */
 export const sendMessage = action({
   args: {
@@ -68,6 +69,16 @@ export const sendMessage = action({
       content: result.content,
       intentType: result.intentType,
     });
+
+    // 6. If action proposed, create pendingAction for the confirmation gate
+    if (result.pendingAction && result.pendingAction.userFacingMessage) {
+      await ctx.runMutation(apiRef.pendingActions.createPendingAction, {
+        conversationId: args.conversationId,
+        actionType: result.pendingAction.actionType,
+        parameters: result.pendingAction.parameters,
+        userFacingMessage: result.pendingAction.userFacingMessage,
+      });
+    }
 
     return result;
   },

@@ -266,6 +266,28 @@ export const en = {
   "assistant.intentAct": "ACT · Confirmation required",
   "assistant.voiceLabel": "Voice",
 
+  // Assistant — Action confirmation (Phase 9)
+  "assistant.actionProposed": "PROPOSED ACTION",
+  "assistant.actionConfirm": "Confirm",
+  "assistant.actionReject": "Reject",
+  "assistant.actionConfirming": "Confirming…",
+  "assistant.actionRejecting": "Rejecting…",
+  "assistant.actionExecuted": "✓ Done",
+  "assistant.actionRejected": "Rejected",
+  "assistant.actionFailed": "Failed",
+  "assistant.actionAmount": "Amount",
+  "assistant.actionType": "Type",
+
+  // ─── Chat history panel ──────────────────────────────────────────────────────
+  "assistant.newChat": "New Chat",
+  "assistant.chatHistory": "Chat History",
+  "assistant.noChats": "No conversations yet",
+  "assistant.deleteChat": "Delete",
+  "assistant.today": "Today",
+  "assistant.yesterday": "Yesterday",
+  "assistant.earlier": "Earlier",
+  "assistant.untitled": "Untitled",
+
   // ─── Settings ─────────────────────────────────────────────────────────────────
   "settings.title": "Settings",
   "settings.subtitle": "Language, notifications, and data",
