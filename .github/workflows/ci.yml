@@ -19,5 +19,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # Keep going after a failure so one red check doesn't hide the others.
       - run: npm run lint
+        if: ${{ !cancelled() }}
       - run: npm test
+        if: ${{ !cancelled() }}

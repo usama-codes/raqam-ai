@@ -35,8 +35,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# convex auto-generated
-convex/_generated/
+# convex auto-generated — committed on purpose so `tsc --noEmit` works in CI
+# (the code won't typecheck without it). `npx convex dev` keeps it in sync.
 
 Raqam-AI Financial Dashboard Design
 
