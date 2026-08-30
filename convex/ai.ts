@@ -16,6 +16,10 @@ import {
   TRANSCRIBE_MODELS,
   VISION_MODELS,
 } from "@/lib/ai/models";
+import {
+  transcribeAudioChain,
+  transcribeWithAssemblyAI,
+} from "@/lib/ai/transcription";
 
 /**
  * The main AI pipeline action. Called from the client hook.
@@ -90,9 +94,13 @@ export const sendMessage = action({
 });
 
 /**
- * Audio transcription — uses Gemini to transcribe a recorded audio blob.
- * Tries purpose-built gemini-3.5-transcribe first, then falls back through
- * the general Flash model chain.
+ * Audio transcription — runs the provider fallback chain defined in
+ * `lib/ai/transcription.ts`:  AssemblyAI (model "universal-2") → Gemini.
+ * The browser's Web Speech API is the third fallback and lives client-side in
+ * `hooks/useVoiceInput.ts`; it takes over when this returns `provider: null`.
+ *
+ * Returns `{ transcript, provider, error }`. `provider` is "assemblyai" |
+ * "gemini" | null so the UI can show which engine produced the text.
  */
 export const transcribeAudio = action({
   args: {
@@ -100,44 +108,71 @@ export const transcribeAudio = action({
     mimeType: v.string(),
   },
   handler: async (_ctx, args) => {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
-      return { transcript: "", error: "GOOGLE_GENERATIVE_AI_API_KEY not set." };
-    }
+    const assemblyAiKey = process.env.ASSEMBLYAI_API_KEY;
+    const geminiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    try {
-      const result = await callGeminiWithFallback(apiKey, TRANSCRIBE_MODELS, {
-        contents: [
-          {
-            parts: [
-              {
-                text: `Transcribe the following audio recording to text. The speech may be in Urdu or English. Return ONLY the transcribed text, nothing else. If the audio is unclear or silent, return an empty string.`,
-              },
-              {
-                inline_data: {
-                  mime_type: args.mimeType,
-                  data: args.audioBase64,
-                },
-              },
-            ],
-          },
-        ],
-      });
-
-      return {
-        transcript: result.text.trim(),
-        error: null,
-      };
-    } catch (err) {
-      console.error("Audio transcription error:", err);
+    if (!assemblyAiKey && !geminiKey) {
       return {
         transcript: "",
+        provider: null,
         error:
-          err instanceof Error
-            ? err.message
-            : "Failed to transcribe audio recording",
+          "No transcription provider configured. Set ASSEMBLYAI_API_KEY (preferred) or GOOGLE_GENERATIVE_AI_API_KEY in the Convex environment.",
       };
     }
+
+    if (!assemblyAiKey) {
+      console.warn(
+        "[transcribeAudio] ASSEMBLYAI_API_KEY is not set in the Convex environment — " +
+          "falling back to Gemini only. Set it with:  npx convex env set ASSEMBLYAI_API_KEY <key>",
+      );
+    }
+
+    // Gemini rejects codec-qualified MIME types (e.g. "audio/webm;codecs=opus")
+    // and WebM entirely. The client normally sends "audio/wav"; strip any
+    // parameters as a safety net.
+    const geminiMimeType = args.mimeType.split(";")[0].trim() || "audio/wav";
+
+    const result = await transcribeAudioChain(
+      { audioBase64: args.audioBase64, mimeType: args.mimeType },
+      {
+        transcribeAssemblyAI: assemblyAiKey
+          ? (audio) =>
+              transcribeWithAssemblyAI({ apiKey: assemblyAiKey, audio }).then(
+                (r) => r.transcript,
+              )
+          : undefined,
+        transcribeGemini: geminiKey
+          ? async (audioBase64) => {
+              const res = await callGeminiWithFallback(
+                geminiKey,
+                TRANSCRIBE_MODELS,
+                {
+                  contents: [
+                    {
+                      parts: [
+                        {
+                          text: `Transcribe the following audio recording to text. The speech may be in Urdu or English. Return ONLY the transcribed text, nothing else. If the audio is unclear or silent, return an empty string.`,
+                        },
+                        {
+                          inline_data: {
+                            mime_type: geminiMimeType,
+                            data: audioBase64,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              );
+              return res.text.trim();
+            }
+          : undefined,
+        onProviderError: (provider, err) =>
+          console.error(`Audio transcription — ${provider} failed:`, err),
+      },
+    );
+
+    return result;
   },
 });
 

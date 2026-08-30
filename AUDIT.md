@@ -177,4 +177,16 @@ The repository is in a pristine state, ready for Phase 1 (UI Fidelity / Design M
 
 ---
 
+## 12. Post-Audit Dependency & Service Log
+
+Additions made after Phase 0, recorded here per AGENTS.md §15 ("Introducing a new npm package without adding it to `AUDIT.md` with justification" is prohibited).
+
+| Date       | Item                                | Type                            | Justification                                                                                                                                                                                                             |
+| ---------- | ----------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-30 | `vitest` `4.1.11`                   | devDependency (test runner)     | Runs `tests/unit/**`. Seeds AGENTS.md Phase 14. Zero runtime/bundle footprint. Adds `npm run test` / `typecheck` scripts + `.github/workflows/ci.yml`.                                                                     |
+| 2026-08-30 | AssemblyAI (`api.assemblyai.com`)   | External service (speech-to-text) | Primary voice-transcription engine (model `universal-2` — cheapest tier, and the only AssemblyAI model supporting Urdu). Free tier covers hackathon demo volume. **User-approved.** No SDK added — raw `fetch` from `convex/ai.ts` via `lib/ai/transcription.ts`. Falls back to Gemini, then the browser Web Speech API. Key: `ASSEMBLYAI_API_KEY` (Convex deployment env). |
+| 2026-08-30 | `framer-motion` `13.1.1`           | dependency (UI animation)        | Assistant-page micro-interactions — composer focus ring, `VoiceRecorder` entrance, message-bubble entrance, suggestion-card hover. **User-approved.** React-19 compatible; ~35 KB gz. Scoped to `components/assistant/**`. |
+
+---
+
 _Audit completed. Phase 0 exit criteria satisfied: AUDIT.md exists, accurately describes the current state, and a human or another agent can read it and agree it is accurate._

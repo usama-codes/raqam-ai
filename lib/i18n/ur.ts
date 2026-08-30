@@ -265,6 +265,8 @@ export const ur = {
   "assistant.intentRecommend": "RECOMMEND · مشورہ",
   "assistant.intentAct": "ACT · تصدیق درکار ہے",
   "assistant.voiceLabel": "آواز",
+  "assistant.thinking": "سوچ رہا ہوں…",
+  "assistant.quickAsks": "یہ پوچھ کر دیکھیں",
 
   // Assistant — Action confirmation (Phase 9)
   "assistant.actionProposed": "تجویز کردہ عمل",
@@ -358,6 +360,7 @@ export const ur = {
   "common.errorDefault":
     "ڈیٹا لوڈ کرنے میں مسئلہ ہوا۔ براہ کرم دوبارہ کوشش کریں۔",
   "common.retry": "دوبارہ کوشش کریں",
+  "common.dismiss": "بند کریں",
   "common.pkR": "PKR",
 
   // ─── AI responses ─────────────────────────────────────────────────────────────
@@ -371,9 +374,17 @@ export const ur = {
   "voice.send": "بھیجیں",
   "voice.cancel": "منسوخ",
   "voice.editTranscript": "تبدیل کریں",
-  "voice.notSupported": "آپ کا براؤزر آواز کی شناخت سپورٹ نہیں کرتا",
+  "voice.notSupported": "آپ کا براؤزر آواز کی سہولت سپورٹ نہیں کرتا",
   "voice.noSpeech": "کوئی آواز نہیں سنائی دی۔ دوبارہ کوشش کریں۔",
+  "voice.micDenied":
+    "مائیکروفون کی اجازت نہیں ملی۔ اجازت دے کر دوبارہ کوشش کریں۔",
   "voice.reviewTitle": "آواز کی نقل",
+  "voice.transcribing": "آواز کو متن میں بدلا جا رہا ہے…",
+  "voice.byAssemblyai": "AssemblyAI سے نقل",
+  "voice.byGemini": "Gemini سے نقل",
+  "voice.byBrowser": "براؤزر سے نقل",
+  "voice.transcribeFailed":
+    "آواز کو متن میں تبدیل نہیں کیا جا سکا۔ نیچے تبدیل کریں یا دوبارہ ریکارڈ کریں۔",
 
   // ─── Receipt OCR ─────────────────────────────────────────────────────────────
   "receipt.title": "رسید سے لین دین",

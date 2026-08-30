@@ -21,9 +21,10 @@
 | 9     | Tool-Using Financial Agent        | ✅ COMPLETE    | ✅ Passed  |
 | 10    | Financial Intelligence            | ✅ COMPLETE    | ✅ Passed  |
 | 11    | Multimodal Accessibility          | ✅ COMPLETE    | ✅ Passed  |
+| 11.1  | Transcription engine (AssemblyAI)  | ✅ COMPLETE    | ✅ Passed  |
 | 12    | Bank Statement / CSV Intelligence | ⬜ NOT STARTED | ⬜ Pending |
 | 13    | Proactive Financial Assistance    | ⬜ NOT STARTED | ⬜ Pending |
-| 14    | Safety, Reliability & Testing     | ⬜ NOT STARTED | ⬜ Pending |
+| 14    | Safety, Reliability & Testing     | 🟡 STARTED     | ⬜ Pending |
 | 15    | Hackathon Polish                  | ⬜ NOT STARTED | ⬜ Pending |
 
 ---
@@ -701,6 +702,112 @@ AI pipeline → Action Agent → ConfirmationCard → user confirms
 
 ---
 
+### Transcription engine upgrade (2026-08-30)
+
+**Status:** ✅ COMPLETE
+**Why:** Web Speech API alone is weak for Urdu. AssemblyAI is now the primary
+engine, with a strict fallback order.
+
+**Chain:** `AssemblyAI → Gemini → browser Web Speech API`
+
+- **AssemblyAI** — model `universal-2` (the cheapest AssemblyAI tier _and_ the only
+  AssemblyAI model that supports Urdu — `universal-3-5-pro` does not). Language is
+  auto-detected per recording (`language_detection: true`). Raw `fetch` (no SDK):
+  `POST /v2/upload` → `POST /v2/transcript` → poll `GET /v2/transcript/{id}`
+  (≤45s, then fall through to Gemini). Auth header is the raw key, no `Bearer`.
+- **Gemini** — `callGeminiWithFallback(TRANSCRIBE_MODELS)` path.
+- **Web Speech** — runs live _in parallel_ with recording (still powers the
+  interim transcript); its result is used only when the server chain returns
+  nothing.
+
+**Audio format (fix, 2026-08-30):** MediaRecorder produces WebM/Opus, which
+**Gemini rejects outright** (and codec-qualified MIME types trip other engines).
+The client now decodes the recording with an `AudioContext` and re-encodes it to
+**mono 16 kHz WAV** (`lib/audio/wav.ts`) before upload, so AssemblyAI _and_ Gemini
+both accept it. Falls back to the raw blob if the browser can't decode.
+
+**Error handling (fix, 2026-08-30):** the hook now emits stable `VoiceErrorCode`s
+(`mic-denied` | `no-speech` | `transcribe-failed` | `not-supported` | `timeout`)
+which the assistant page maps to localized `voice.*` strings — no more raw English
+error text in the UI. Raw provider errors are `console.warn`ed. `convex/ai.ts` logs
+a clear warning when `ASSEMBLYAI_API_KEY` is missing from the Convex env.
+
+**Files**
+
+| File | Change |
+| --- | --- |
+| `lib/ai/transcription.ts` | **new** — pure, `fetch`-injectable `transcribeWithAssemblyAI()` + `transcribeAudioChain()` |
+| `lib/audio/wav.ts` | **new** — pure `encodeWav` / `downsampleMono` / `mixToMono` / `arrayBufferToBase64` |
+| `convex/ai.ts` | `transcribeAudio` composes the chain; returns `{ transcript, provider, error }`; sanitizes MIME; warns on missing key |
+| `hooks/useVoiceInput.ts` | rewrite — MediaRecorder→WAV→server primary, Web Speech parallel/tertiary, `provider` + `VoiceErrorCode` |
+| `app/(app)/assistant/page.tsx` | muted "Transcribed by …" label; localized voice errors; `aria-live` / `role="alert"` |
+| `lib/i18n/{ur,en}.ts` | new `voice.*` keys + `common.dismiss` each |
+| `.env.example` | `ASSEMBLYAI_API_KEY` section (replaces never-wired `OPENAI_WHISPER_API_KEY`) |
+| `AUDIT.md` | §12 Post-Audit Dependency & Service Log (vitest, AssemblyAI) |
+
+**Env:** `ASSEMBLYAI_API_KEY` **must** be set in the **Convex deployment** env —
+Convex actions do **not** read `.env.local` and `convex dev` does not sync it:
+
+```
+npx convex env set ASSEMBLYAI_API_KEY <key>
+```
+
+If unset, the chain skips to Gemini (which now works thanks to the WAV fix), and
+the Convex logs print a one-line warning.
+
+### Assistant UI redesign (2026-08-30)
+
+**Status:** ✅ COMPLETE
+**Why:** the page looked unfinished and had a real bug — the voice review panel
+rendered as a **second input box** stacked on the composer.
+
+- **Two-box fix:** the voice review panel is gone. A finished transcript now
+  drops straight into the **one** composer as an editable draft with a
+  `🎙 آواز کی نقل · <engine>` chip (`X` to discard); the normal Send ships it with
+  `inputMode: "voice"`.
+- **Composer** (`components/assistant/ChatComposer.tsx`) — one rounded surface,
+  auto-resizing multi-line `<textarea>` (`hooks/useAutoResizeTextarea.ts`,
+  `dir="auto"`), Enter = send / Shift+Enter = newline, icon mic + icon receipt on
+  one side, primary Send on the other.
+- **Voice recorder** (`components/assistant/VoiceRecorder.tsx`) — *replaces* the
+  composer while recording/transcribing (never stacked): pulsing green mic,
+  `mm:ss` timer, equalizer visualizer (`@keyframes rq-pulse`), live interim text,
+  prominent Stop.
+- **Empty state** (`components/assistant/ChatEmptyState.tsx`) — `ر` mark + gold
+  ring, greeting, capability legend, 2×2 suggestion cards.
+- **Messages** (`ChatMessage.tsx`, `AssistantAvatar.tsx`, `ThinkingBubble.tsx`) —
+  assistant `ر` avatar, intent pill, framer-motion entrance, autoscroll to newest.
+- **Header** trimmed to toggle + mark + title (the 4 capability badges moved to
+  the empty state). Hardcoded hex → shadcn semantic tokens
+  (`bg-card` / `border-border` / `text-muted-foreground` / `bg-primary` /
+  `bg-accent`) on all touched surfaces.
+- **Dep:** `framer-motion` `13.1.1` (pinned; AUDIT.md §12). Reference components
+  `ai-voice-input.tsx` / `animated-ai-chat.tsx` were **adapted**, not pasted —
+  their dark-glass theme and slash-command palette don't fit an Urdu financial
+  assistant.
+- `tsc`, `eslint` (0 errors), `next build` (11 routes), `vitest` (39) all green.
+
+---
+
+**Tests / CI (new — seeds Phase 14)**
+
+- `vitest` `4.1.11` (dev dep) + `vitest.config.mts` + `npm run test` / `typecheck`.
+- `tests/unit/transcription.test.ts` — AssemblyAI flow (happy path, job error, 401,
+  timeout, empty audio) + chain fallthrough (empty/throw → Gemini, both fail →
+  `provider: null`).
+- `tests/unit/wav.test.ts` — WAV header, Int16 clipping, downsample ratio/averaging,
+  mono mix, base64 round-trip.
+- `tests/unit/calculations.test.ts` — `lib/finance/calculations.ts` pure fns.
+- `tests/live/transcription.live.test.ts` — **real AssemblyAI API** check
+  (self-skips without `ASSEMBLYAI_API_KEY`). Verified 2026-08-30: uploaded the
+  public sample, `universal-2` + `language_detection` returned a 4 880-char
+  transcript, `transcribeAudioChain` reported `provider: "assemblyai"`.
+- `.github/workflows/ci.yml` — `npm ci` → `typecheck` → `lint` → `test` on push/PR.
+- `tsc --noEmit`, `next build` (11 routes), `npx convex dev --once`, `vitest run`
+  (39 unit + 2 live) all green.
+
+---
+
 ## Phase 12 — Bank Statement / CSV Intelligence
 
 **Status:** ⬜ NOT STARTED
@@ -770,17 +877,24 @@ AI pipeline → Action Agent → ConfirmationCard → user confirms
 
 ## Phase 14 — Safety, Reliability & Testing
 
-**Status:** ⬜ NOT STARTED
+**Status:** 🟡 STARTED (test harness seeded during the 2026-08-30 transcription work)
 **Dependencies:** All prior phases complete
 **Exit gate:** ⬜ Pending — Full test run with zero failures; auth isolation verified with two real users.
 
+**Harness in place (2026-08-30):** `vitest` `4.1.11` + `vitest.config.mts`,
+`npm run test` / `npm run typecheck`, and `.github/workflows/ci.yml`
+(`npm ci → typecheck → lint → test` on every push to `main` and every PR).
+Current suite: 39 unit tests across
+`tests/unit/{transcription,wav,calculations}.test.ts`, plus a self-skipping
+`tests/live/transcription.live.test.ts` that hits the real AssemblyAI API.
+
 ### Implementation requirements
 
-- [ ] Unit tests for all `lib/finance/` functions
+- [~] Unit tests for all `lib/finance/` functions — `calculations.ts` covered; `projections.ts`, `anomaly.ts`, `import/normalizer.ts` still TODO
 - [ ] Integration tests for all Convex mutations (auth, validation, authorization)
 - [ ] Integration tests for confirmation gate cycle
 - [ ] AI tool schema validation tests
-- [ ] Financial calculations tested against manually computed values
+- [~] Financial calculations tested against manually computed values — `calculations.ts` done
 - [ ] `npm audit` — no critical/high vulnerabilities
 
 ### Test table
@@ -795,7 +909,7 @@ AI pipeline → Action Agent → ConfirmationCard → user confirms
 | Mixed language   | "Aaj Rs 500 ka khana order kiya" → correctly parsed             | ⬜     |
 | Malformed CSV    | Missing header → clear error, nothing persisted                 | ⬜     |
 | Duplicate import | Re-importing same CSV → duplicates flagged                      | ⬜     |
-| AI failure       | AI API timeout → user sees error, no crash                      | ⬜     |
+| AI failure       | AI API timeout → user sees error, no crash                      | 🟡 transcription chain: AssemblyAI timeout → Gemini → Web Speech → graceful error (unit-tested) |
 | Mutation failure | Convex mutation fails → UI shows error, state consistent        | ⬜     |
 | Auth isolation   | Unauthenticated request → rejected                              | ⬜     |
 | RTL              | All screens at 320px in RTL                                     | ⬜     |

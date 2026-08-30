@@ -265,6 +265,8 @@ export const en = {
   "assistant.intentRecommend": "RECOMMEND · Advice",
   "assistant.intentAct": "ACT · Confirmation required",
   "assistant.voiceLabel": "Voice",
+  "assistant.thinking": "Thinking…",
+  "assistant.quickAsks": "Try asking",
 
   // Assistant — Action confirmation (Phase 9)
   "assistant.actionProposed": "PROPOSED ACTION",
@@ -358,6 +360,7 @@ export const en = {
   "common.errorTitle": "Something went wrong",
   "common.errorDefault": "There was a problem loading data. Please try again.",
   "common.retry": "Try Again",
+  "common.dismiss": "Dismiss",
   "common.pkR": "PKR",
 
   // ─── AI responses ─────────────────────────────────────────────────────────────
@@ -371,9 +374,17 @@ export const en = {
   "voice.send": "Send",
   "voice.cancel": "Cancel",
   "voice.editTranscript": "Edit",
-  "voice.notSupported": "Your browser does not support speech recognition",
+  "voice.notSupported": "Your browser does not support voice input",
   "voice.noSpeech": "No speech detected. Please try again.",
+  "voice.micDenied":
+    "Microphone access denied. Allow microphone access and try again.",
   "voice.reviewTitle": "Voice Transcription",
+  "voice.transcribing": "Transcribing…",
+  "voice.byAssemblyai": "Transcribed by AssemblyAI",
+  "voice.byGemini": "Transcribed by Gemini",
+  "voice.byBrowser": "Transcribed by your browser",
+  "voice.transcribeFailed":
+    "Couldn't transcribe the audio. Edit below or record again.",
 
   // ─── Receipt OCR ─────────────────────────────────────────────────────────────
   "receipt.title": "Receipt Transaction",

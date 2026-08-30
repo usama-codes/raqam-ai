@@ -1,12 +1,30 @@
 "use client";
 
-// hooks/useVoiceInput.ts — Browser-based speech recognition using Web Speech API
-// Uses lang="ur-PK" for Urdu recognition. Falls back to MediaRecorder + Gemini
-// transcription when the Web Speech API network fails.
+// hooks/useVoiceInput.ts — Voice capture with a transcription fallback chain.
+//
+// Priority order (product decision, 2026-08-30):
+//   1. AssemblyAI  — server-side, via the `ai.transcribeAudio` Convex action
+//   2. Gemini      — server-side, same action (see lib/ai/transcription.ts)
+//   3. Web Speech  — browser-native, runs live *in parallel* with recording so it
+//                    also powers the interim transcript; its result is used only
+//                    when the server path (AssemblyAI + Gemini) produces nothing.
+//
+// The primary path records a blob with MediaRecorder, decodes + re-encodes it to
+// mono 16 kHz WAV (so every provider accepts it — Gemini rejects WebM), then
+// sends it to the server. If MediaRecorder / getUserMedia is unavailable, the
+// hook falls back to a Web-Speech-only capture path.
 
 import * as React from "react";
 import { useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
+import type { TranscriptProvider } from "@/lib/ai/transcription";
+import {
+  TARGET_SAMPLE_RATE,
+  encodeWav,
+  downsampleMono,
+  mixToMono,
+  arrayBufferToBase64,
+} from "@/lib/audio/wav";
 
 // ─── Web Speech API type declarations ──────────────────────────────────────────
 
@@ -55,35 +73,106 @@ declare global {
   interface Window {
     SpeechRecognition?: new () => SpeechRecognitionInstance;
     webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+    webkitAudioContext?: typeof AudioContext;
   }
 }
 
 // ─── Hook interface ────────────────────────────────────────────────────────────
 
-export interface UseVoiceInputReturn {
-  /** Whether the microphone is actively recording */
-  isListening: boolean;
-  /** Whether audio is being transcribed (fallback mode, after recording stops) */
-  processing: boolean;
-  /** Final transcribed text (set after speech ends) */
+/** Stable error identifiers — the UI maps these to localized strings. */
+export type VoiceErrorCode =
+  | "mic-denied"
+  | "no-speech"
+  | "transcribe-failed"
+  | "not-supported"
+  | "timeout";
+
+export interface VoiceOutcome {
   transcript: string;
-  /** Live interim text while user is still speaking */
+  provider: TranscriptProvider | null;
+  error: VoiceErrorCode | null;
+}
+
+export interface UseVoiceInputReturn {
+  /** Whether the microphone is actively recording / listening. */
+  isListening: boolean;
+  /** Whether the recording is being transcribed (after the user hits stop). */
+  processing: boolean;
+  /** Final transcribed text. */
+  transcript: string;
+  /** Live interim text while the user is still speaking (Web Speech). */
   interimTranscript: string;
-  /** Start or toggle recording */
+  /** Which engine produced the final transcript. */
+  provider: TranscriptProvider | null;
+  /** Start (or restart) recording. */
   startListening: () => void;
-  /** Stop recording and finalize transcript */
+  /** Stop recording and kick off transcription. */
   stopListening: () => void;
-  /** Reset transcript and error state */
+  /** Reset transcript, provider and error state. */
   reset: () => void;
   /**
    * Promise-based result waiter — reads from refs to avoid stale closures.
-   * Resolves with { transcript, error } once transcription completes or fails.
+   * Resolves once transcription settles or a 30s safety timeout elapses.
    */
-  waitForResult: () => Promise<{ transcript: string; error: string | null }>;
-  /** Error or unsupported message */
-  error: string | null;
-  /** Whether the browser supports speech recognition or audio recording */
+  waitForResult: () => Promise<VoiceOutcome>;
+  /** Stable error code, or null. Map to text with the i18n dictionary. */
+  error: VoiceErrorCode | null;
+  /** Whether the browser can capture voice at all. */
   supported: boolean;
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () =>
+      resolve((reader.result as string).split(",")[1] ?? "");
+    reader.onerror = () => reject(new Error("Failed to read audio recording"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Decode a recorded blob and re-encode it as mono 16 kHz WAV so every
+ * transcription provider accepts it. Returns null if the browser cannot decode
+ * the recording (the caller then falls back to sending the raw blob).
+ */
+async function blobToWavBase64(
+  blob: Blob,
+): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    if (blob.size === 0) return null;
+    const AudioCtx =
+      (typeof window !== "undefined" && window.AudioContext) ||
+      (typeof window !== "undefined" && window.webkitAudioContext) ||
+      null;
+    if (!AudioCtx) return null;
+
+    const arrayBuffer = await blob.arrayBuffer();
+    const ctx = new AudioCtx();
+    try {
+      // decodeAudioData detaches its input — hand it a copy.
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+      const channels: Float32Array[] = [];
+      for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+        channels.push(audioBuffer.getChannelData(c));
+      }
+      const mono = mixToMono(channels);
+      if (mono.length === 0) return null;
+      const down = downsampleMono(
+        mono,
+        audioBuffer.sampleRate,
+        TARGET_SAMPLE_RATE,
+      );
+      const wav = encodeWav(down, TARGET_SAMPLE_RATE);
+      return { base64: arrayBufferToBase64(wav), mimeType: "audio/wav" };
+    } finally {
+      void ctx.close();
+    }
+  } catch {
+    return null;
+  }
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
@@ -93,126 +182,139 @@ export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
   const [processing, setProcessing] = React.useState(false);
   const [transcript, setTranscript] = React.useState("");
   const [interimTranscript, setInterimTranscript] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  const [provider, setProvider] = React.useState<TranscriptProvider | null>(
+    null,
+  );
+  const [error, setError] = React.useState<VoiceErrorCode | null>(null);
 
-  // Refs that always reflect the latest state (for use in waitForResult)
-  const transcriptRef = React.useRef("");
-  const processingRef = React.useRef(false);
-  const errorRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    transcriptRef.current = transcript;
-  }, [transcript]);
-  React.useEffect(() => {
-    processingRef.current = processing;
-  }, [processing]);
-  React.useEffect(() => {
-    errorRef.current = error;
-  }, [error]);
+  // Outcome refs — waitForResult() polls these to avoid stale closures.
+  const settledRef = React.useRef(false);
+  const outcomeRef = React.useRef<VoiceOutcome>({
+    transcript: "",
+    provider: null,
+    error: null,
+  });
 
-  const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
-  // Track whether we *want* to be listening (survives across onend restarts)
-  const shouldListenRef = React.useRef(false);
-  // Track whether the recognition engine actually started
-  const didStartRef = React.useRef(false);
-  // Retry counter for premature onend
-  const retryCountRef = React.useRef(0);
-  // MediaRecorder fallback refs
+  // Capture refs
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
-  const fallbackActiveRef = React.useRef(false);
-  // Prevent triggering fallback more than once per recording session
-  const fallbackTriedRef = React.useRef(false);
+  const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
+  const webSpeechFinalRef = React.useRef("");
+  // true once the MediaRecorder path is running for this session
+  const usingRecorderRef = React.useRef(false);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transcribeAudio = useAction((api as any).ai.transcribeAudio);
+  const transcribeAudioRef = React.useRef(transcribeAudio);
+  React.useEffect(() => {
+    transcribeAudioRef.current = transcribeAudio;
+  }, [transcribeAudio]);
 
-  const supported =
+  const speechSupported =
     typeof window !== "undefined" &&
-    (!!window.SpeechRecognition ||
-      !!window.webkitSpeechRecognition ||
-      !!navigator.mediaDevices?.getUserMedia);
+    (!!window.SpeechRecognition || !!window.webkitSpeechRecognition);
+  const recorderSupported =
+    typeof window !== "undefined" &&
+    !!navigator.mediaDevices?.getUserMedia &&
+    typeof window.MediaRecorder !== "undefined";
+  const supported = speechSupported || recorderSupported;
 
-  // ─── MediaRecorder fallback (Gemini transcription) ──────────────────────────
+  // ─── Settle ────────────────────────────────────────────────────────────────
 
-  const startMediaRecorderFallback = React.useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+  const settle = React.useCallback((outcome: VoiceOutcome) => {
+    outcomeRef.current = outcome;
+    settledRef.current = true;
+    setTranscript(outcome.transcript);
+    setProvider(outcome.provider);
+    setError(outcome.error);
+    setProcessing(false);
+    setIsListening(false);
+  }, []);
+
+  const stopStream = React.useCallback(() => {
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+  }, []);
+
+  // ─── Transcribe the recorded blob (server chain, Web Speech fallback) ───────
+
+  const finalizeFromRecorder = React.useCallback(
+    async (recorderMime: string) => {
+      stopStream();
+      const blob = new Blob(audioChunksRef.current, {
+        type: recorderMime || "audio/webm",
+      });
       audioChunksRef.current = [];
-      fallbackActiveRef.current = true;
 
-      recorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      const webSpeechText = webSpeechFinalRef.current.trim();
+
+      const fallBackToWebSpeech = (): boolean => {
+        if (webSpeechText) {
+          settle({
+            transcript: webSpeechText,
+            provider: "browser",
+            error: null,
+          });
+          return true;
+        }
+        return false;
       };
 
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType,
-        });
+      if (blob.size === 0) {
+        if (!fallBackToWebSpeech()) {
+          settle({ transcript: "", provider: null, error: "no-speech" });
+        }
+        return;
+      }
 
-        // Convert to base64
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64 = (reader.result as string).split(",")[1] ?? "";
-          setProcessing(true);
-          try {
-            const result = await transcribeAudio({
-              audioBase64: base64,
-              mimeType: recorder.mimeType,
-            });
-            if (result?.transcript) {
-              setTranscript(result.transcript);
-            } else if (result?.error) {
-              setError(result.error);
-            } else {
-              setError(
-                lang === "ur-PK"
-                  ? "آڈیو ٹرانسکرائب نہیں ہو سکی۔ براہ کرم دوبارہ کوشش کریں۔"
-                  : "Could not transcribe audio. Please try again.",
-              );
-            }
-          } catch {
-            setError("Transcription failed. Please try again.");
-          } finally {
-            setProcessing(false);
-            fallbackActiveRef.current = false;
-          }
-        };
-      };
+      try {
+        const wav = await blobToWavBase64(blob);
+        const base64 = wav ? wav.base64 : await blobToBase64(blob);
+        const mimeType = wav ? wav.mimeType : blob.type || "audio/webm";
 
-      recorder.onerror = () => {
-        setError("Recording error. Please try again.");
-        setIsListening(false);
-        fallbackActiveRef.current = false;
-        stream.getTracks().forEach((t) => t.stop());
-      };
+        const res = (await transcribeAudioRef.current({
+          audioBase64: base64,
+          mimeType,
+        })) as
+          | { transcript?: string; provider?: string; error?: string }
+          | undefined;
 
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsListening(true);
-    } catch {
-      setError("Microphone access denied. Please allow microphone access.");
-      setIsListening(false);
-      fallbackActiveRef.current = false;
-    }
-  }, [lang, transcribeAudio]);
+        const serverText = (res?.transcript ?? "").trim();
+        if (serverText) {
+          settle({
+            transcript: serverText,
+            provider: (res?.provider as TranscriptProvider) ?? "assemblyai",
+            error: null,
+          });
+          return;
+        }
 
-  // Ref bridge so the useEffect's onerror closure always has the latest fallback fn
-  const fallbackFnRef = React.useRef(startMediaRecorderFallback);
+        if (res?.error) {
+          console.warn("[voice] server transcription failed:", res.error);
+        }
+        if (fallBackToWebSpeech()) return;
+        settle({ transcript: "", provider: null, error: "transcribe-failed" });
+      } catch (err) {
+        console.warn("[voice] transcription action threw:", err);
+        if (fallBackToWebSpeech()) return;
+        settle({ transcript: "", provider: null, error: "transcribe-failed" });
+      }
+    },
+    [settle, stopStream],
+  );
+
+  const finalizeRef = React.useRef(finalizeFromRecorder);
   React.useEffect(() => {
-    fallbackFnRef.current = startMediaRecorderFallback;
-  }, [startMediaRecorderFallback]);
+    finalizeRef.current = finalizeFromRecorder;
+  }, [finalizeFromRecorder]);
 
-  // ─── Web Speech recognition setup ─────────────────────────────────────────
+  // ─── Web Speech recognition (parallel / tertiary) ──────────────────────────
 
-  // Lazily create the recognition instance
   React.useEffect(() => {
-    if (!supported) return;
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition!;
-    const recognition = new SpeechRecognition();
+    if (!speechSupported) return;
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition!;
+    const recognition = new Ctor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = lang;
@@ -220,216 +322,187 @@ export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = "";
       let final = "";
-
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        if (result.isFinal) {
-          final += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
-        }
+        if (result.isFinal) final += result[0].transcript;
+        else interim += result[0].transcript;
       }
-
-      if (final) {
-        setTranscript((prev) => prev + final);
-      }
+      if (final) webSpeechFinalRef.current += final;
       setInterimTranscript(interim);
-    };
-
-    recognition.onstart = () => {
-      didStartRef.current = true;
-      retryCountRef.current = 0;
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === "not-allowed") {
-        shouldListenRef.current = false;
-        setError("Microphone access denied. Please allow microphone access.");
-        setIsListening(false);
-      } else if (event.error === "no-speech") {
-        // no-speech is non-fatal — let onend handle fallback if needed
-      } else if (
-        event.error === "network" ||
-        event.error === "service-not-allowed"
-      ) {
-        // Web Speech API server unreachable — will fall back in onend
-      } else if (event.error !== "aborted") {
-        shouldListenRef.current = false;
-        setError(`Speech error: ${event.error}`);
-        setIsListening(false);
+        setError("mic-denied");
       }
+      // network / no-speech / service-not-allowed / aborted are non-fatal here —
+      // the server path is primary and handles the final outcome.
     };
 
     recognition.onend = () => {
       setInterimTranscript("");
-
-      // If the user explicitly stopped, clear processing and close out.
-      if (!shouldListenRef.current) {
-        processingRef.current = false;
-        setIsListening(false);
-        return;
-      }
-
-      // ── Premature onend (onstart never fired) — retry with backoff ──
-      if (!didStartRef.current) {
-        if (retryCountRef.current < 2) {
-          retryCountRef.current++;
-          setTimeout(() => {
-            if (shouldListenRef.current && recognitionRef.current) {
-              didStartRef.current = false;
-              try {
-                recognitionRef.current.start();
-              } catch {
-                // Already running — ignore
-              }
-            }
-          }, 150 * retryCountRef.current);
-          return;
-        }
-        // Retries exhausted — try MediaRecorder fallback
-        if (!fallbackTriedRef.current) {
-          fallbackTriedRef.current = true;
-          fallbackFnRef.current();
-          return;
-        }
-        shouldListenRef.current = false;
-        setError(
-          "Could not start speech recognition. Please check your microphone and try again.",
+      // Web-Speech-only path: recognition end is the final outcome.
+      if (!usingRecorderRef.current && !settledRef.current) {
+        const text = webSpeechFinalRef.current.trim();
+        settle(
+          text
+            ? { transcript: text, provider: "browser", error: null }
+            : { transcript: "", provider: null, error: "no-speech" },
         );
-        setIsListening(false);
-        return;
       }
-
-      // ── Recognition was running but stopped (continuous-mode gap) ──
-      // Try to auto-restart for seamless continuous recording.
-      didStartRef.current = false;
-      try {
-        recognition.start();
-        // Restart call succeeded — wait for next cycle.
-        return;
-      } catch {
-        // Restart failed — Web Speech API is unreliable on this browser.
-        // Fall through to MediaRecorder fallback.
-      }
-
-      // ── Fallback to MediaRecorder + Gemini ──
-      if (!fallbackTriedRef.current) {
-        fallbackTriedRef.current = true;
-        // Abort the broken Web Speech instance before starting MediaRecorder
-        try {
-          recognition.abort();
-        } catch {
-          // ignore
-        }
-        fallbackFnRef.current();
-        return;
-      }
-
-      // Both Web Speech and fallback have failed — give up
-      shouldListenRef.current = false;
-      setError(
-        "Speech recognition is not available. Please type your message instead.",
-      );
-      setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-
     return () => {
-      shouldListenRef.current = false;
-      recognition.abort();
+      try {
+        recognition.abort();
+      } catch {
+        // ignore
+      }
       recognitionRef.current = null;
     };
-  }, [supported, lang]);
+  }, [speechSupported, lang, settle]);
 
-  const startListening = React.useCallback(() => {
+  // ─── Controls ──────────────────────────────────────────────────────────────
+
+  const resetInternal = React.useCallback(() => {
     setTranscript("");
     setInterimTranscript("");
+    setProvider(null);
     setError(null);
     setProcessing(false);
-    transcriptRef.current = "";
-    processingRef.current = false;
-    errorRef.current = null;
-    shouldListenRef.current = true;
-
-    // If Web Speech API not available, go directly to MediaRecorder fallback
-    if (!recognitionRef.current) {
-      fallbackFnRef.current();
-      return;
-    }
-
-    didStartRef.current = false;
-    retryCountRef.current = 0;
-    fallbackTriedRef.current = false;
-    try {
-      recognitionRef.current.start();
-      setIsListening(true);
-    } catch {
-      // Already started — ignore
-    }
+    webSpeechFinalRef.current = "";
+    settledRef.current = false;
+    outcomeRef.current = { transcript: "", provider: null, error: null };
   }, []);
+
+  const startListening = React.useCallback(async () => {
+    resetInternal();
+    usingRecorderRef.current = false;
+    audioChunksRef.current = [];
+    setIsListening(true);
+
+    // Start Web Speech in parallel — live interim text + tertiary fallback.
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch {
+        // Already running — ignore.
+      }
+    }
+
+    // Primary path: record a blob for server-side transcription.
+    if (recorderSupported) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        mediaStreamRef.current = stream;
+        const recorder = new MediaRecorder(stream);
+        usingRecorderRef.current = true;
+
+        recorder.ondataavailable = (e: BlobEvent) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+        recorder.onstop = () => {
+          void finalizeRef.current(recorder.mimeType);
+        };
+        recorder.onerror = () => {
+          usingRecorderRef.current = false;
+          stopStream();
+        };
+
+        mediaRecorderRef.current = recorder;
+        recorder.start();
+        return;
+      } catch (err) {
+        usingRecorderRef.current = false;
+        const name = (err as Error | undefined)?.name;
+        if (name === "NotAllowedError" || name === "SecurityError") {
+          setError("mic-denied");
+          setIsListening(false);
+          try {
+            recognitionRef.current?.abort();
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        // Otherwise fall through to the Web-Speech-only path.
+      }
+    }
+
+    if (!recognitionRef.current) {
+      setError("not-supported");
+      setIsListening(false);
+    }
+  }, [resetInternal, recorderSupported, stopStream]);
 
   const stopListening = React.useCallback(() => {
-    shouldListenRef.current = false;
-    // Mark processing so waitForResult keeps waiting until async finalization
-    processingRef.current = true;
-    // Stop MediaRecorder fallback
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== "inactive"
-    ) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-      setIsListening(false);
-      return;
-    }
-    // Stop Web Speech recognition
-    if (!recognitionRef.current) {
-      processingRef.current = false;
-      return;
-    }
-    recognitionRef.current.stop();
+    setProcessing(true);
     setIsListening(false);
-    // processingRef stays true until onend fires and clears it
-  }, []);
+
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // ignore
+    }
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop(); // → onstop → finalizeFromRecorder
+      mediaRecorderRef.current = null;
+      return;
+    }
+
+    // Web-Speech-only path — settle now if recognition already produced text,
+    // otherwise recognition.onend will settle.
+    if (!usingRecorderRef.current && !settledRef.current) {
+      const text = webSpeechFinalRef.current.trim();
+      if (text) {
+        settle({ transcript: text, provider: "browser", error: null });
+      }
+    }
+  }, [settle]);
 
   const reset = React.useCallback(() => {
-    setTranscript("");
-    setInterimTranscript("");
-    setError(null);
-    setProcessing(false);
-    transcriptRef.current = "";
-    processingRef.current = false;
-    errorRef.current = null;
-  }, []);
+    resetInternal();
+  }, [resetInternal]);
 
-  const waitForResult = React.useCallback((): Promise<{
-    transcript: string;
-    error: string | null;
-  }> => {
+  const waitForResult = React.useCallback((): Promise<VoiceOutcome> => {
     return new Promise((resolve) => {
       let elapsed = 0;
       const check = () => {
-        elapsed += 300;
-        if (transcriptRef.current) {
-          resolve({ transcript: transcriptRef.current, error: null });
-        } else if (errorRef.current && !processingRef.current) {
-          resolve({ transcript: "", error: errorRef.current });
-        } else if (!processingRef.current && elapsed > 1000) {
-          // Processing done but no transcript/error — empty result (Web Speech no-speech)
-          resolve({ transcript: "", error: null });
-        } else if (elapsed > 30000) {
-          // Safety timeout: 30 seconds max
-          resolve({
-            transcript: "",
-            error: "Timed out waiting for transcription.",
-          });
-        } else {
-          setTimeout(check, 300);
+        elapsed += 200;
+        if (settledRef.current) {
+          resolve(outcomeRef.current);
+          return;
         }
+        if (elapsed > 30000) {
+          const text = webSpeechFinalRef.current.trim();
+          resolve(
+            text
+              ? { transcript: text, provider: "browser", error: null }
+              : { transcript: "", provider: null, error: "timeout" },
+          );
+          return;
+        }
+        setTimeout(check, 200);
       };
       check();
     });
+  }, []);
+
+  // Cleanup on unmount.
+  React.useEffect(() => {
+    return () => {
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      try {
+        mediaRecorderRef.current?.stop();
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
   return {
@@ -437,6 +510,7 @@ export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
     processing,
     transcript,
     interimTranscript,
+    provider,
     startListening,
     stopListening,
     reset,

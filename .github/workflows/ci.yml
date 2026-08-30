@@ -1,0 +1,23 @@
+name: CI
+
+# Fast, deterministic checks on every push to main and every pull request.
+# The production build runs on Vercel (it needs real Convex / Clerk env vars).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
