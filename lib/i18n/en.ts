@@ -364,4 +364,33 @@ export const en = {
   "ai.insufficientData": "Your data is not sufficient for this analysis yet.",
   "ai.error": "Something went wrong, please try again.",
   "ai.dataReference": "According to your transactions...",
+
+  // ─── Voice input ─────────────────────────────────────────────────────────────
+  "voice.recording": "Listening… speak now",
+  "voice.stop": "Stop",
+  "voice.send": "Send",
+  "voice.cancel": "Cancel",
+  "voice.editTranscript": "Edit",
+  "voice.notSupported": "Your browser does not support speech recognition",
+  "voice.noSpeech": "No speech detected. Please try again.",
+  "voice.reviewTitle": "Voice Transcription",
+
+  // ─── Receipt OCR ─────────────────────────────────────────────────────────────
+  "receipt.title": "Receipt Transaction",
+  "receipt.description":
+    "Upload a receipt image — the assistant will extract the details automatically",
+  "receipt.tapToUpload": "Select an image or use your camera",
+  "receipt.processing": "Reading receipt…",
+  "receipt.merchant": "Merchant / Store",
+  "receipt.amount": "Amount (Rs.)",
+  "receipt.date": "Date",
+  "receipt.notes": "Notes / Description",
+  "receipt.category": "Category (suggestion)",
+  "receipt.sendToAssistant": "Send to Assistant",
+  "receipt.cancel": "Cancel",
+  "receipt.tryAgain": "Try Again",
+  "receipt.invalidFormat": "Only image files (JPEG, PNG) are supported",
+  "receipt.noDataExtracted":
+    "No data could be extracted. Please use a clear image.",
+  "receipt.processingError": "Failed to process receipt",
 } as const;

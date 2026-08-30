@@ -364,6 +364,35 @@ export const ur = {
   "ai.insufficientData": "آپ کا ڈیٹا ابھی اس تجزیے کے لیے کافی نہیں ہے۔",
   "ai.error": "کچھ مسلا آ گیا، براہ کرم دوبارہ کوشش کریں۔",
   "ai.dataReference": "آپ کے لین دین کے مطابق…",
+
+  // ─── Voice input ─────────────────────────────────────────────────────────────
+  "voice.recording": "سن رہا ہوں… بولیں",
+  "voice.stop": "رکیں",
+  "voice.send": "بھیجیں",
+  "voice.cancel": "منسوخ",
+  "voice.editTranscript": "تبدیل کریں",
+  "voice.notSupported": "آپ کا براؤزر آواز کی شناخت سپورٹ نہیں کرتا",
+  "voice.noSpeech": "کوئی آواز نہیں سنائی دی۔ دوبارہ کوشش کریں۔",
+  "voice.reviewTitle": "آواز کی نقل",
+
+  // ─── Receipt OCR ─────────────────────────────────────────────────────────────
+  "receipt.title": "رسید سے لین دین",
+  "receipt.description":
+    "رسید کی تصویر اپ لوڈ کریں — معاون خود بخود تفصیلات نکالے گا",
+  "receipt.tapToUpload": "تصویر منتخب کریں یا کیمرہ استعمال کریں",
+  "receipt.processing": "رسید پڑھ رہا ہوں…",
+  "receipt.merchant": "دکان / مرچنٹ",
+  "receipt.amount": "رقم (Rs.)",
+  "receipt.date": "تاریخ",
+  "receipt.notes": "نوٹ / تفصیل",
+  "receipt.category": "زمرہ (تجویز)",
+  "receipt.sendToAssistant": "معاون کو بھیجیں",
+  "receipt.cancel": "منسوخ",
+  "receipt.tryAgain": "دوبارہ کوشش کریں",
+  "receipt.invalidFormat": "صرف تصویر فائلیں (JPEG, PNG) سپورٹ ہیں",
+  "receipt.noDataExtracted":
+    "رسید سے کوئی ڈیٹا نہیں نکلا۔ براہ کرم صاف تصویر لیں۔",
+  "receipt.processingError": "رسید پروسیس کرنے میں مسئلہ ہوا",
 } as const;
 
 export type TranslationKey = keyof typeof ur;

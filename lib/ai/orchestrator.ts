@@ -28,11 +28,12 @@ import {
   ActionExtraction,
   type ActionExtractionResult,
 } from "./action-schemas";
+import { PRIMARY_MODEL } from "./models";
 
 // ─── Model provider configuration ───────────────────────────────────────────────
 
-/** Gemini model id. Free tier, cheapest current Flash-Lite. Swap in one place. */
-const MODEL = "gemini-3.5-flash-lite";
+/** Primary model from centralized config. Swap in lib/ai/models.ts. */
+const MODEL = PRIMARY_MODEL;
 
 setTracingDisabled(true);
 setOpenAIAPI("chat_completions");
