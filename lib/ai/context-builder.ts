@@ -1,6 +1,14 @@
 // lib/ai/context-builder.ts — Assembles structured financial context for the AI
 // This module runs inside a Convex action and reads data via ctx.runQuery.
 
+import {
+  calculateDailyExpenseAverage,
+  calculateDaysRemainingInMonth,
+  detectCategoryAnomalies,
+  goalCompletionDate,
+} from "@/lib/finance/calculations";
+import { projectEndOfMonth, whatIfScenario } from "@/lib/finance/projections";
+
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 export interface FinancialContext {
@@ -40,6 +48,37 @@ export interface FinancialContext {
     label: string;
     amount: string;
   }>;
+  intelligence: {
+    dailyExpenseAverage: number;
+    daysRemaining: number;
+    daysElapsed: number;
+    projectedEndOfMonth: number;
+    anomalies: Array<{
+      name: string;
+      nameUr: string;
+      average: number;
+      currentSpend: number;
+      deviationPercent: number;
+    }>;
+    whatIfOptions: Array<{
+      categoryName: string;
+      categoryNameUr: string;
+      currentSpend: number;
+      savingsAt30Percent: number;
+    }>;
+    goalProjections: Array<{
+      name: string;
+      nameUr?: string;
+      monthsToComplete: number | null;
+      completionDate: string | null;
+    }>;
+    historicalMonths: Array<{
+      month: number;
+      income: number;
+      expenses: number;
+      savingsRate: number;
+    }>;
+  };
 }
 
 // ─── Builder ────────────────────────────────────────────────────────────────────
@@ -120,6 +159,136 @@ export async function buildFinancialContext(
     // Goals may not exist yet
   }
 
+  // 4. Get intelligence data (3-month history for projections & anomalies)
+  let intelligenceData: {
+    currentMonth: {
+      income: number;
+      expenses: number;
+      daysElapsed: number;
+      totalDaysInMonth: number;
+    };
+    historicalMonths: Array<{
+      month: number;
+      income: number;
+      expenses: number;
+      netSavings: number;
+      savingsRate: number;
+    }>;
+    currentCategorySpending: Array<{
+      categoryId: string;
+      name: string;
+      nameUr: string;
+      amount: number;
+    }>;
+    categoryRollingAverages: Array<{
+      categoryId: string;
+      name: string;
+      nameUr: string;
+      average: number;
+      currentSpend: number;
+    }>;
+  } | null = null;
+
+  try {
+    intelligenceData = await ctx.runQuery(
+      anyApi.summary.getIntelligenceData,
+      {},
+    );
+  } catch {
+    // Intelligence data may not be available
+  }
+
+  // 5. Compute intelligence
+  const defaultIntelligence: FinancialContext["intelligence"] = {
+    dailyExpenseAverage: 0,
+    daysRemaining: 0,
+    daysElapsed: 0,
+    projectedEndOfMonth: summary.netSavings,
+    anomalies: [],
+    whatIfOptions: [],
+    goalProjections: [],
+    historicalMonths: [],
+  };
+
+  let intelligence = defaultIntelligence;
+
+  if (intelligenceData) {
+    const { daysElapsed, totalDaysInMonth } = intelligenceData.currentMonth;
+    const daysRemaining = calculateDaysRemainingInMonth(
+      daysElapsed,
+      totalDaysInMonth,
+    );
+    const dailyAvg = calculateDailyExpenseAverage(
+      intelligenceData.currentMonth.expenses,
+      daysElapsed,
+    );
+    const currentBalance = summary.netSavings;
+    const projected = projectEndOfMonth(
+      currentBalance,
+      dailyAvg,
+      daysRemaining,
+    );
+
+    // Detect anomalies from rolling averages
+    const anomalies = detectCategoryAnomalies(
+      intelligenceData.categoryRollingAverages,
+    );
+
+    // What-if scenarios for top expense categories
+    const whatIfOptions = intelligenceData.currentCategorySpending
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5)
+      .map((cat) => ({
+        categoryName: cat.name,
+        categoryNameUr: cat.nameUr,
+        currentSpend: cat.amount,
+        savingsAt30Percent: whatIfScenario(
+          summary.totalExpenses,
+          cat.amount,
+          30,
+        ),
+      }));
+
+    // Goal projections — use average monthly savings from last 3 months
+    const avgMonthlySavings =
+      intelligenceData.historicalMonths.length > 0
+        ? intelligenceData.historicalMonths.reduce(
+            (sum, m) => sum + m.netSavings,
+            0,
+          ) / intelligenceData.historicalMonths.length
+        : summary.netSavings;
+
+    const goalProjections = goals.map((g) => {
+      const months =
+        avgMonthlySavings > 0
+          ? Math.ceil(
+              Math.max(0, g.targetAmount - g.currentAmount) / avgMonthlySavings,
+            )
+          : null;
+      return {
+        name: g.name,
+        nameUr: g.nameUr,
+        monthsToComplete: months,
+        completionDate: goalCompletionDate(
+          g.targetAmount,
+          g.currentAmount,
+          avgMonthlySavings,
+        ),
+      };
+    });
+
+    intelligence = {
+      dailyExpenseAverage: Math.round(dailyAvg),
+      daysRemaining,
+      daysElapsed,
+      projectedEndOfMonth: Math.round(projected),
+      anomalies,
+      whatIfOptions,
+      goalProjections,
+      historicalMonths: intelligenceData.historicalMonths,
+    };
+  }
+
   return {
     currentMonth: {
       income: summary.totalIncome,
@@ -132,6 +301,7 @@ export async function buildFinancialContext(
     budgets,
     goals,
     upcomingBills: summary.upcomingBills,
+    intelligence,
   };
 }
 
@@ -202,6 +372,72 @@ export function formatContextForPrompt(ctx: FinancialContext): string {
     lines.push("\n### Upcoming Bills (next 7 days)");
     for (const b of ctx.upcomingBills) {
       lines.push(`- ${b.label}: Rs. ${b.amount}`);
+    }
+  }
+
+  // Intelligence section
+  const intel = ctx.intelligence;
+  if (intel && (intel.dailyExpenseAverage > 0 || intel.anomalies.length > 0)) {
+    lines.push("\n### Financial Intelligence");
+
+    if (intel.dailyExpenseAverage > 0) {
+      lines.push(
+        `\n- Daily average expense: Rs. ${intel.dailyExpenseAverage.toLocaleString()}`,
+      );
+      lines.push(
+        `- Projected end-of-month balance: Rs. ${intel.projectedEndOfMonth.toLocaleString()} (${intel.daysRemaining} days remaining)`,
+      );
+    }
+
+    if (intel.historicalMonths.length > 0) {
+      const histWithExpenses = intel.historicalMonths.filter(
+        (h) => h.expenses > 0,
+      );
+      if (histWithExpenses.length > 0) {
+        lines.push("\n#### Historical Spending (previous months)");
+        for (const h of intel.historicalMonths) {
+          if (h.expenses === 0) continue;
+          const monthName = new Date(h.month).toLocaleString("en", {
+            month: "long",
+          });
+          lines.push(
+            `- ${monthName}: Income Rs. ${h.income.toLocaleString()}, Expenses Rs. ${h.expenses.toLocaleString()}, Savings Rate ${h.savingsRate.toFixed(1)}%`,
+          );
+        }
+      }
+    }
+
+    if (intel.anomalies.length > 0) {
+      lines.push("\n#### Spending Anomalies Detected");
+      for (const a of intel.anomalies) {
+        lines.push(
+          `- ${a.nameUr} (${a.name}): Rs. ${a.currentSpend.toLocaleString()} vs avg Rs. ${a.average.toLocaleString()} (${a.deviationPercent}% above average)`,
+        );
+      }
+    }
+
+    if (intel.whatIfOptions.length > 0) {
+      lines.push("\n#### What-if Scenarios (30% reduction)");
+      for (const w of intel.whatIfOptions) {
+        lines.push(
+          `- Reduce ${w.categoryNameUr} by 30%: projected total Rs. ${Math.round(w.savingsAt30Percent).toLocaleString()}`,
+        );
+      }
+    }
+
+    if (intel.goalProjections.length > 0) {
+      lines.push("\n#### Goal Timeline Projections");
+      for (const g of intel.goalProjections) {
+        if (g.monthsToComplete !== null && g.completionDate) {
+          lines.push(
+            `- ${g.nameUr ?? g.name}: ~${g.monthsToComplete} months (est. ${g.completionDate})`,
+          );
+        } else {
+          lines.push(
+            `- ${g.nameUr ?? g.name}: Not achievable with current savings rate`,
+          );
+        }
+      }
     }
   }
 

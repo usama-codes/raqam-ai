@@ -146,6 +146,193 @@ export const getFinancialSummary = query({
   },
 });
 
+// ─── Intelligence data ─────────────────────────────────────────────────────────
+
+/**
+ * Returns 3 months of financial data for AI intelligence computations.
+ * Used by the context builder to feed projections, anomaly detection,
+ * and what-if analysis into pure calculation functions.
+ */
+export const getIntelligenceData = query({
+  args: {},
+  handler: async (ctx: QueryCtx) => {
+    const user = await requireUser(ctx);
+    const now = new Date();
+    const currentMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+    ).getTime();
+
+    // 3 months back from current month start
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    const threeMonthsAgoMs = threeMonthsAgo.getTime();
+
+    // Fetch all transactions for the last 3 months
+    const allTransactions = await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_date", (q) =>
+        q
+          .eq("userId", user._id)
+          .gte("date", threeMonthsAgoMs)
+          .lt("date", currentMonthStart + 32 * 24 * 60 * 60 * 1000),
+      )
+      .collect();
+
+    // Fetch categories once
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const categoryMap = new Map<Id<"categories">, (typeof categories)[number]>(
+      categories.map((c) => [c._id, c]),
+    );
+
+    // Split transactions into monthly buckets
+    type MonthBucket = {
+      income: number;
+      expenses: number;
+      categorySpending: Map<string, number>;
+    };
+    const monthlyData: Map<number, MonthBucket> = new Map();
+
+    for (const t of allTransactions) {
+      const tDate = new Date(t.date);
+      const monthStart = new Date(
+        tDate.getFullYear(),
+        tDate.getMonth(),
+        1,
+      ).getTime();
+
+      if (!monthlyData.has(monthStart)) {
+        monthlyData.set(monthStart, {
+          income: 0,
+          expenses: 0,
+          categorySpending: new Map(),
+        });
+      }
+      const bucket = monthlyData.get(monthStart)!;
+      if (t.type === "income") bucket.income += t.amount;
+      else {
+        bucket.expenses += t.amount;
+        bucket.categorySpending.set(
+          t.categoryId,
+          (bucket.categorySpending.get(t.categoryId) ?? 0) + t.amount,
+        );
+      }
+    }
+
+    // Build monthly summaries for previous months
+    const historicalMonths: Array<{
+      month: number;
+      income: number;
+      expenses: number;
+      netSavings: number;
+      savingsRate: number;
+    }> = [];
+
+    for (let i = 3; i >= 1; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthMs = monthDate.getTime();
+      const data = monthlyData.get(monthMs);
+      const income = data?.income ?? 0;
+      const expenses = data?.expenses ?? 0;
+      historicalMonths.push({
+        month: monthMs,
+        income,
+        expenses,
+        netSavings: income - expenses,
+        savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+      });
+    }
+
+    // Current month data
+    const currentData = monthlyData.get(currentMonthStart) ?? {
+      income: 0,
+      expenses: 0,
+      categorySpending: new Map(),
+    };
+
+    // Current month category spending
+    const currentCategorySpending: Array<{
+      categoryId: string;
+      name: string;
+      nameUr: string;
+      amount: number;
+    }> = [];
+
+    for (const [catId, amount] of currentData.categorySpending) {
+      const cat = categoryMap.get(catId as Id<"categories">);
+      currentCategorySpending.push({
+        categoryId: catId,
+        name: cat?.name ?? "Unknown",
+        nameUr: cat?.nameUr ?? "نامعلوم",
+        amount,
+      });
+    }
+
+    // Compute 3-month rolling average per category
+    const categoryRollingAverages: Array<{
+      categoryId: string;
+      name: string;
+      nameUr: string;
+      average: number;
+      currentSpend: number;
+    }> = [];
+
+    const allCategoryIds = new Set<string>();
+    for (const [, data] of monthlyData) {
+      for (const catId of data.categorySpending.keys()) {
+        allCategoryIds.add(catId);
+      }
+    }
+
+    for (const catId of allCategoryIds) {
+      let total = 0;
+      let count = 0;
+      for (let i = 1; i <= 3; i++) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthMs = monthDate.getTime();
+        const data = monthlyData.get(monthMs);
+        total += data?.categorySpending?.get(catId) ?? 0;
+        count++;
+      }
+      const average = total / count;
+      const currentSpend = currentData.categorySpending.get(catId) ?? 0;
+      const cat = categoryMap.get(catId as Id<"categories">);
+
+      categoryRollingAverages.push({
+        categoryId: catId,
+        name: cat?.name ?? "Unknown",
+        nameUr: cat?.nameUr ?? "نامعلوم",
+        average,
+        currentSpend,
+      });
+    }
+
+    // Days elapsed and total in current month
+    const dayOfMonth = now.getDate();
+    const totalDaysInMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+    ).getDate();
+
+    return {
+      currentMonth: {
+        income: currentData.income,
+        expenses: currentData.expenses,
+        daysElapsed: dayOfMonth,
+        totalDaysInMonth,
+      },
+      historicalMonths,
+      currentCategorySpending,
+      categoryRollingAverages,
+    };
+  },
+});
+
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
 function getFirstOfMonth(): number {

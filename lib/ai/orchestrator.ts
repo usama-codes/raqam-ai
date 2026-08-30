@@ -99,7 +99,7 @@ function buildAgents(): Agent<AgentContext> {
   const analyzeAgent = new Agent<AgentContext>({
     name: "Analyze Agent",
     handoffDescription:
-      "Handles questions about the user's own financial data and personalized advice — spending analysis, savings rate, budget recommendations.",
+      'Handles questions about the user\'s own financial data, personalized advice, projections, anomaly analysis, affordability questions, and what-if scenarios — spending analysis, savings rate, budget recommendations, end-of-month projections, goal timelines, "can I afford X?" questions.',
     instructions: (ctx: RunContext<AgentContext>) => {
       const base = buildBasePrompt(ctx.context.preferredLanguage);
       const { financialContext } = ctx.context;
@@ -145,6 +145,11 @@ Roman Urdu = Urdu words typed in English letters. It is VERY common. Examples:
 - "meri savings kitni hai?" → analyze
 - "kharcha delete karo" → act
 - "savings goal banaye" → act
+- "mahine ke end tak kitna bachega?" → analyze
+- "kya main 15000 ka phone afford kar sakta hoon?" → analyze
+- "kahan se bachat ho sakti hai?" → analyze
+- "koi unusual spending hai?" → analyze
+- "is saal tak goal pura hoga?" → analyze
 
 Most Latin-script messages from Urdu-preference users are Roman Urdu, not English.`
           : "The user speaks English.";
@@ -154,7 +159,7 @@ Most Latin-script messages from Urdu-preference users are Roman Urdu, not Englis
 Classify the user's message and route to the correct specialist agent:
 
 - **Education Agent**: Financial literacy questions (e.g., "inflation kya hai?", "what is compound interest?", "committee kya hoti hai?")
-- **Analyze Agent**: Questions about the user's OWN financial data OR requests for personalized advice (e.g., "is mahine kitna kharch hua?", "where do I spend most?", "how can I save more?", "budget suggestions")
+- **Analyze Agent**: Questions about the user's OWN financial data, personalized advice, projections, and affordability (e.g., "is mahine kitna kharch hua?", "where do I spend most?", "how can I save more?", "budget suggestions", "mahine ke end tak kitna bachega?", "can I afford Rs. 15,000 phone?", "kahan se bachat ho sakti hai?", "any unusual spending?", "goal kab tak pura hoga?")
 - **Action Agent**: Requests to create, edit, or delete a financial record (e.g., "500 ka petrol add karo", "delete yesterday's transaction", "create a budget")
 
 ${langNote}
