@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import {
   Geist,
   Geist_Mono,
@@ -48,6 +47,26 @@ export const metadata: Metadata = {
     "A financially literate Pakistani friend who understands your finances, explains them in Urdu, helps you make better decisions, and safely performs a small set of useful actions on your behalf.",
 };
 
+// Warm-ledger palette for Clerk's own auth widgets. The detailed per-element
+// styling lives on the <SignIn> / <SignUp> `appearance.elements` in the auth
+// pages; these variables set the baseline so we no longer depend on @clerk/ui's
+// `shadcn` theme (which dragged in the entire React-Native / Solana toolchain —
+// see AUDIT.md §12.1).
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#0F5132",
+    colorText: "#14231B",
+    colorTextSecondary: "#6B7A70",
+    colorBackground: "#FFFFFF",
+    colorInputBackground: "#FBF9F4",
+    colorInputText: "#14231B",
+    colorDanger: "#B3261E",
+    colorSuccess: "#22B07D",
+    borderRadius: "10px",
+    fontFamily: "var(--font-noto-sans-arabic), var(--font-geist-sans), sans-serif",
+  },
+} as const;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -57,7 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${notoSansArabic.variable} ${manrope.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F7F4EC] text-[#14231B]">
-        <ClerkProvider appearance={shadcn}>{children}</ClerkProvider>
+        <ClerkProvider appearance={clerkAppearance}>{children}</ClerkProvider>
       </body>
     </html>
   );

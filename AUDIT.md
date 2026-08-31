@@ -217,6 +217,19 @@ Native dependency tree). That drops all 19 advisories and a large slice of
 `node_modules`. Deferred here because it changes the look of the login / signup
 screens and needs a visual pass.
 
+### 12.2 `npm audit` — Phase 15 (2026-08-31) — RESOLVED
+
+`@clerk/ui` removed (`npm uninstall @clerk/ui` — **338 packages** gone,
+the entire `@solana/*` + `react-native` + `metro` + `image-size` subtree with
+them). `app/layout.tsx` now passes an inline `appearance={{ variables: {…} }}`
+(warm-ledger palette) to `<ClerkProvider>`; `app/globals.css` no longer imports
+`@clerk/ui/themes/shadcn.css`. The per-page `<SignIn>` / `<SignUp>`
+`appearance.elements` overrides (unchanged) carry the detailed styling.
+
+**`npm audit` now: `found 0 vulnerabilities`.** All 19 advisories from §12.1
+are gone. Visual check of `/login` + `/signup` after the swap is on the Phase 15
+browser checklist (PROGRESS.md).
+
 ---
 
 _Audit completed. Phase 0 exit criteria satisfied: AUDIT.md exists, accurately describes the current state, and a human or another agent can read it and agree it is accurate._
