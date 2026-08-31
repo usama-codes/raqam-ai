@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as assistant from "../assistant.js";
+import type * as auditLog from "../auditLog.js";
 import type * as auth from "../auth.js";
 import type * as budgets from "../budgets.js";
 import type * as categories from "../categories.js";
@@ -33,6 +34,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   assistant: typeof assistant;
+  auditLog: typeof auditLog;
   auth: typeof auth;
   budgets: typeof budgets;
   categories: typeof categories;

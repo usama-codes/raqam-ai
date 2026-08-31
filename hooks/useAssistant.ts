@@ -272,11 +272,20 @@ export function useAssistant(): UseAssistantReturn {
     setCurrentConversationId(id);
   }, []);
 
-  // Confirm action
+  // Confirm action.
+  // confirmAction resolves { success: false, error } when the executor fails
+  // (it no longer throws — see convex/pendingActions.ts). Re-throw here so the
+  // ConfirmationCard's catch resets its confirming state and the failed
+  // pendingAction row (status "failed") renders its error.
   const confirmAction = React.useCallback(
     async (actionId: string): Promise<void> => {
       try {
-        await confirmActionMutation({ actionId: actionId as never });
+        const result = await confirmActionMutation({
+          actionId: actionId as never,
+        });
+        if (result && result.success === false) {
+          throw new Error(result.error ?? "Action failed");
+        }
       } catch (err) {
         console.error("Failed to confirm action:", err);
         throw err;

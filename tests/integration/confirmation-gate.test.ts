@@ -114,7 +114,7 @@ describe("confirmAction", () => {
     ).rejects.toThrow(/no longer pending/);
   });
 
-  test("bad params throw and write nothing (atomic rollback)", async () => {
+  test("bad params: action marked failed, nothing written (Phase 15 fix)", async () => {
     const t = convexTest(schema, modules);
     await seedUser(t);
     const asUser = t.withIdentity({ subject: SUBJECT_A });
@@ -127,17 +127,50 @@ describe("confirmAction", () => {
       userFacingMessage: "x",
     });
 
+    // confirmAction no longer throws on executor failure — it returns
+    // { success: false } so the "failed" status patch can commit.
+    const out = await asUser.mutation(api.pendingActions.confirmAction, { actionId });
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/Missing required parameters/);
+
+    // Executor validates before its first write, so nothing was inserted.
+    expect(await t.run((ctx) => ctx.db.query("transactions").collect())).toHaveLength(0);
+
+    // The row is now distinguishable from an un-actioned one.
+    const action = await t.run((ctx) => ctx.db.get(actionId));
+    expect(action?.status).toBe("failed");
+    expect(action?.resultMessage).toMatch(/Missing required parameters/);
+
+    // A failed action cannot be confirmed again.
     await expect(
       asUser.mutation(api.pendingActions.confirmAction, { actionId }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/no longer pending/);
+  });
 
-    // No partial write — the failed executor rolls the whole mutation back.
-    expect(await t.run((ctx) => ctx.db.query("transactions").collect())).toHaveLength(0);
-    // KNOWN LIMITATION (surfaced in PROGRESS.md Phase 14): confirmAction's catch
-    // patches status → "failed" and then re-throws; the re-throw rolls that patch
-    // back too, so the action is left "pending", not "failed". Safe (nothing
-    // executed) but the row cannot be distinguished from an un-actioned one.
-    expect((await t.run((ctx) => ctx.db.get(actionId)))?.status).toBe("pending");
+  test("AI-initiated executions write an auditLog row (source: ai)", async () => {
+    const t = convexTest(schema, modules);
+    await seedUser(t);
+    const asUser = t.withIdentity({ subject: SUBJECT_A });
+    const conv = await conversationFor(t, SUBJECT_A);
+
+    const actionId = await asUser.mutation(api.pendingActions.createPendingAction, {
+      conversationId: conv,
+      actionType: "createTransaction",
+      parameters: JSON.stringify({
+        type: "expense",
+        amount: 850,
+        description: "Petrol",
+        categoryName: "transportation",
+      }),
+      userFacingMessage: "x",
+    });
+    await asUser.mutation(api.pendingActions.confirmAction, { actionId });
+
+    const rows = await t.run((ctx) => ctx.db.query("auditLog").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe("ai");
+    expect(rows[0].action).toBe("transaction.create");
+    expect(rows[0].entityType).toBe("transaction");
   });
 
   test("a user cannot confirm another user's pending action", async () => {

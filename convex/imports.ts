@@ -6,6 +6,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUser } from "./auth";
+import { logAudit } from "./auditLog";
 import type { Id } from "./_generated/dataModel";
 import {
   MAX_IMPORT_ROWS,
@@ -376,6 +377,15 @@ export const confirmImport = mutation({
       status: "confirmed",
       importedCount,
       updatedAt: now,
+    });
+
+    await logAudit(ctx, {
+      userId: user._id,
+      action: "import.confirm",
+      entityType: "import",
+      entityId: args.importId,
+      metadata: JSON.stringify({ importedCount, fileName: importDoc.fileName }),
+      source: "user",
     });
 
     return { importedCount };

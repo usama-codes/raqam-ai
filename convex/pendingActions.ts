@@ -12,6 +12,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUser } from "./auth";
+import { logAudit } from "./auditLog";
 import type { Id } from "./_generated/dataModel";
 
 // ─── Queries ────────────────────────────────────────────────────────────────────
@@ -93,6 +94,14 @@ export const createPendingAction = mutation({
  * 2. Parse and validate the stored parameters
  * 3. Execute the underlying mutation (create transaction, delete, or create goal)
  * 4. Update pendingAction status to "executed" (or "failed" on error)
+ *
+ * On executor failure the handler **returns `{ success: false }`** rather than
+ * throwing: a Convex mutation rolls back every write when the handler throws,
+ * so an earlier `throw err` here also rolled back the `status: "failed"` patch
+ * and left the action stuck at "pending". Returning normally lets the "failed"
+ * status commit. This is only safe because every executor below validates all
+ * inputs *before* its first write — a future executor that writes then throws
+ * would leave a partial record. Keep executors validate-first.
  */
 export const confirmAction = mutation({
   args: { actionId: v.id("pendingActions") },
@@ -134,7 +143,7 @@ export const confirmAction = mutation({
         updatedAt: Date.now(),
       });
 
-      return { success: true, resultMessage };
+      return { success: true as const, resultMessage };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Execution failed";
       await ctx.db.patch(args.actionId, {
@@ -142,7 +151,7 @@ export const confirmAction = mutation({
         resultMessage: message,
         updatedAt: Date.now(),
       });
-      throw err;
+      return { success: false as const, error: message };
     }
   },
 });
@@ -250,7 +259,7 @@ async function insertTransaction(
     ).getTime();
   }
 
-  await ctx.db.insert("transactions", {
+  const transactionId = await ctx.db.insert("transactions", {
     userId: user._id,
     type: params.type,
     amount: params.amount,
@@ -264,6 +273,20 @@ async function insertTransaction(
     pendingConfirmation: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+  });
+
+  await logAudit(ctx, {
+    userId: user._id,
+    action: "transaction.create",
+    entityType: "transaction",
+    entityId: transactionId,
+    metadata: JSON.stringify({
+      type: params.type,
+      amount: params.amount,
+      description: params.description,
+      categoryName: params.categoryName,
+    }),
+    source: "ai",
   });
 
   return `${params.type === "income" ? "آمدنی" : "خرچ"} Rs. ${params.amount.toLocaleString()} — ${params.description} شامل ہو گیا۔`;
@@ -305,6 +328,18 @@ async function executeDeleteTransaction(
 
   await ctx.db.delete(match._id);
 
+  await logAudit(ctx, {
+    userId: user._id,
+    action: "transaction.delete",
+    entityType: "transaction",
+    entityId: match._id,
+    metadata: JSON.stringify({
+      amount: match.amount,
+      description: match.description,
+    }),
+    source: "ai",
+  });
+
   return `Rs. ${match.amount.toLocaleString()} — ${match.description ?? "لین دین"} حذف ہو گیا۔`;
 }
 
@@ -330,7 +365,7 @@ async function executeCreateSavingsGoal(
   }
 
   const now = Date.now();
-  await ctx.db.insert("savingsGoals", {
+  const goalId = await ctx.db.insert("savingsGoals", {
     userId: user._id,
     name: params.name,
     nameUr: params.nameUr,
@@ -340,6 +375,18 @@ async function executeCreateSavingsGoal(
     isCompleted: false,
     createdAt: now,
     updatedAt: now,
+  });
+
+  await logAudit(ctx, {
+    userId: user._id,
+    action: "goal.create",
+    entityType: "savingsGoal",
+    entityId: goalId,
+    metadata: JSON.stringify({
+      name: params.name,
+      targetAmount: params.targetAmount,
+    }),
+    source: "ai",
   });
 
   return `بچت کا ہدف "${params.name}" — Rs. ${params.targetAmount.toLocaleString()} بن گیا۔`;
