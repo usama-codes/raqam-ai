@@ -34,9 +34,12 @@ export const getBudgetCategories = query({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
 
+    // A reactive client can briefly hold a budget id that has just been deleted
+    // or replaced (e.g. a re-seed). Return an empty list rather than throwing —
+    // no data is leaked either way, and the UI renders "no categories" cleanly.
     const budget = await ctx.db.get(args.budgetId);
     if (!budget || budget.userId !== user._id) {
-      throw new Error("Budget not found or does not belong to this user.");
+      return [];
     }
 
     const budgetCats = await ctx.db
