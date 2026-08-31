@@ -22,6 +22,7 @@ import {
   EmptyState,
   ErrorState,
 } from "@/components/shared/DataStates";
+import { budgetThresholdSeverity } from "@/lib/finance/calculations";
 
 const PAGE_SIZE = 20;
 
@@ -222,15 +223,16 @@ export default function TransactionsPage() {
       if (bc && bc.limit > 0) {
         const projectedSpent = bc.spent + amount;
         const pct = Math.round((projectedSpent / bc.limit) * 100);
+        const severity = budgetThresholdSeverity(projectedSpent, bc.limit);
         const catName =
           categories.find((c) => c.id === data.categoryId)?.nameUr ?? "زمرہ";
-        if (pct >= 100) {
+        if (severity === "over") {
           addToast({
             type: "error",
             title: `${catName} ${t("transactions.budgetExceeded")}`,
             description: `${pkr(projectedSpent)} / ${pkr(bc.limit)} (${pct}%)`,
           });
-        } else if (pct >= 80) {
+        } else if (severity === "warning") {
           addToast({
             type: "warning",
             title: `${catName} ${t("transactions.budgetWarning")}`,

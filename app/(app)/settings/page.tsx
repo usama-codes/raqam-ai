@@ -2,6 +2,10 @@
 
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  useNotificationPrefs,
+  type NotificationPrefKey,
+} from "@/hooks/useNotificationPrefs";
 import { SignOutButton } from "@clerk/nextjs";
 
 function Toggle({ on, onChange }: { on: boolean; onChange?: () => void }) {
@@ -22,8 +26,17 @@ function Toggle({ on, onChange }: { on: boolean; onChange?: () => void }) {
 export default function SettingsPage() {
   const { t, language, setLanguage } = useLanguage();
   const { signOut } = useAuth();
+  const { prefs, setPref } = useNotificationPrefs();
 
   const isUrdu = language === "ur";
+
+  const notifToggles: Array<{ label: string; key: NotificationPrefKey }> = [
+    { label: t("settings.notifBudget80"), key: "budget80" },
+    { label: t("settings.notifBudget100"), key: "budget100" },
+    { label: t("settings.notifBillReminder"), key: "billReminder" },
+    { label: t("settings.notifUnusualSpend"), key: "unusualSpend" },
+    { label: t("settings.notifMonthlySummary"), key: "monthlySummary" },
+  ];
 
   return (
     <div className="flex flex-col">
@@ -106,19 +119,16 @@ export default function SettingsPage() {
                 {t("settings.notificationsDesc")}
               </p>
             </div>
-            {[
-              { label: t("settings.notifBudget80"), on: true },
-              { label: t("settings.notifBudget100"), on: true },
-              { label: t("settings.notifBillReminder"), on: true },
-              { label: t("settings.notifUnusualSpend"), on: false },
-              { label: t("settings.notifMonthlySummary"), on: true },
-            ].map((item, i) => (
+            {notifToggles.map((item, i) => (
               <div
-                key={item.label}
+                key={item.key}
                 className={`flex items-center justify-between ${i > 0 ? "border-t border-[#F1EEE4] pt-3.5" : ""}`}
               >
                 <span className="text-[15px]">{item.label}</span>
-                <Toggle on={item.on} />
+                <Toggle
+                  on={prefs[item.key]}
+                  onChange={() => setPref(item.key, !prefs[item.key])}
+                />
               </div>
             ))}
           </div>

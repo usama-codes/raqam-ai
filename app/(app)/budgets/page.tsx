@@ -39,6 +39,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { RecurringBillsSection } from "@/components/budgets/RecurringBillsSection";
 
 const tblGrid =
   "grid-cols-[minmax(140px,1.3fr)_130px_minmax(120px,1fr)_100px_50px]";
@@ -552,6 +553,13 @@ export default function BudgetsPage() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Recurring bills (Phase 13) — shown for every non-loading state ── */}
+      {!loading && !error && (
+        <div className="px-6 pb-12 pt-2 sm:px-10">
+          <RecurringBillsSection />
         </div>
       )}
 

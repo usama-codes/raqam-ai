@@ -246,6 +246,7 @@ export const getAlerts = query({
       categoryNameUr: string;
       categoryIcon: string;
       nextDueDate: number;
+      daysUntilDue: number;
       overdue: boolean;
     }> = [];
 
@@ -254,6 +255,8 @@ export const getAlerts = query({
         .query("recurringExpenses")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect();
+
+      const DAY_MS = 24 * 60 * 60 * 1000;
 
       billReminders = bills
         .filter((b) => b.isActive && b.nextDueDate <= now + THREE_DAYS_MS)
@@ -269,6 +272,7 @@ export const getAlerts = query({
             categoryNameUr: cat?.nameUr ?? "نامعلوم",
             categoryIcon: cat?.icon ?? "📦",
             nextDueDate: b.nextDueDate,
+            daysUntilDue: Math.ceil((b.nextDueDate - now) / DAY_MS),
             overdue: b.nextDueDate < now,
           };
         })

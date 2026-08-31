@@ -12,6 +12,7 @@ import {
   StatCardSkeleton,
   ChartSkeleton,
 } from "@/components/shared/DataStates";
+import { ProactiveAlerts } from "@/components/dashboard/ProactiveAlerts";
 
 function pkr(n: string | number) {
   return `Rs. ${typeof n === "number" ? n.toLocaleString() : n}`;
@@ -57,6 +58,7 @@ export default function DashboardPage() {
       <div className="flex flex-col">
         <DashboardHeader />
         <div className="flex flex-col gap-[22px] px-6 pb-12 pt-7 sm:px-10">
+          <ProactiveAlerts />
           {/* Empty stat cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -84,6 +86,7 @@ export default function DashboardPage() {
       <DashboardHeader />
 
       <div className="flex flex-col gap-[22px] px-6 pb-12 pt-7 sm:px-10">
+        <ProactiveAlerts />
         {/* Stat cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="flex min-w-0 flex-col gap-2 rounded-2xl bg-[#0F5132] p-5 text-[#EAF1EB]">
