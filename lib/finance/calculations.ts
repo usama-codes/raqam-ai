@@ -56,6 +56,28 @@ export function calculateBudgetUtilization(
 }
 
 /**
+ * Classify a category's budget utilisation into an alert severity.
+ * Shared by the transaction-entry toast and the dashboard proactive alert card
+ * so the two never drift apart.
+ *
+ * - `< 80%`  → "none"
+ * - `80–99%` → "warning"
+ * - `>= 100%` → "over"
+ *
+ * Returns "none" when there is no limit to measure against.
+ */
+export function budgetThresholdSeverity(
+  spent: number,
+  limit: number,
+): "none" | "warning" | "over" {
+  if (limit <= 0) return "none";
+  const pct = (spent / limit) * 100;
+  if (pct >= 100) return "over";
+  if (pct >= 80) return "warning";
+  return "none";
+}
+
+/**
  * Sum transactions for a specific category.
  */
 export function sumByCategory(

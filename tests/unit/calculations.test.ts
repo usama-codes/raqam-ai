@@ -3,6 +3,7 @@ import {
   calculateBalance,
   calculateSavingsRate,
   calculateBudgetUtilization,
+  budgetThresholdSeverity,
   calculateDailyExpenseAverage,
   calculateDaysRemainingInMonth,
   detectCategoryAnomalies,
@@ -50,6 +51,26 @@ describe("calculateBudgetUtilization", () => {
   it("returns the percent spent", () => {
     expect(calculateBudgetUtilization(900, 1000)).toBe(90);
     expect(calculateBudgetUtilization(1500, 1000)).toBe(150);
+  });
+});
+
+describe("budgetThresholdSeverity", () => {
+  it("returns 'none' when there is no limit", () => {
+    expect(budgetThresholdSeverity(500, 0)).toBe("none");
+  });
+
+  it("returns 'none' below 80%", () => {
+    expect(budgetThresholdSeverity(790, 1000)).toBe("none");
+  });
+
+  it("returns 'warning' from 80% up to but not including 100%", () => {
+    expect(budgetThresholdSeverity(800, 1000)).toBe("warning");
+    expect(budgetThresholdSeverity(999, 1000)).toBe("warning");
+  });
+
+  it("returns 'over' at 100% and above", () => {
+    expect(budgetThresholdSeverity(1000, 1000)).toBe("over");
+    expect(budgetThresholdSeverity(1500, 1000)).toBe("over");
   });
 });
 
