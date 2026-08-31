@@ -327,12 +327,67 @@ export const ur = {
 
   // ─── Import ───────────────────────────────────────────────────────────────────
   "import.title": "بینک اسٹیٹمنٹ درآمد",
-  "import.subtitle": "CSV یا PDF فائل اپ لوڈ کریں",
+  "import.subtitle": "CSV فائل اپ لوڈ کریں",
   "import.uploadLabel": "UPLOAD",
   "import.uploadTitle": "نئی فائل درآمد کریں",
   "import.uploadDesc":
-    "CSV (5 MB تک) یا PDF اسٹیٹمنٹ (10 MB تک) · ایک بار میں 500 اندراج",
+    "بینک اسٹیٹمنٹ CSV (5 MB تک) · ایک بار میں 500 اندراج · جائزہ کے بعد ہی محفوظ ہوگا",
   "import.selectFile": "فائل منتخب کریں",
+  "import.uploading": "اپ لوڈ اور تجزیہ ہو رہا ہے…",
+
+  // Import — preview table
+  "import.previewTitle": "درآمد کا جائزہ لیں",
+  "import.rowsLabel": "سطریں",
+  "import.importedLabel": "شامل شدہ",
+  "import.duplicate": "ڈپلیکیٹ",
+  "import.skippedRowsPrefix": "چھوڑی گئی: ",
+  "import.skippedRowsSuffix": " (غلط تاریخ یا رقم)",
+  "import.duplicateHint":
+    "ڈپلیکیٹ سطریں پہلے سے غیر منتخب ہیں — یقین ہو تو ہی منتخب کریں۔",
+  "import.selectRow": "سطر منتخب کریں",
+  "import.colDate": "تاریخ",
+  "import.colDescription": "تفصیل",
+  "import.colAmount": "رقم",
+  "import.colType": "قسم",
+  "import.colCategory": "زمرہ",
+  "import.pickCategory": "زمرہ منتخب کریں",
+  "import.showMore": "مزید دکھائیں",
+  "import.selectedPrefix": "منتخب: ",
+  "import.selectedSuffix": " از ",
+  "import.fixRowsPrefix": "",
+  "import.fixRowsSuffix": " منتخب سطروں میں رقم، تاریخ یا زمرہ درست کریں",
+  "import.confirmImport": "درآمد کریں",
+  "import.cancelImport": "درآمد منسوخ کریں",
+
+  // Import — history
+  "import.historyTitle": "درآمد کی تاریخ",
+  "import.historyEmptyTitle": "ابھی کوئی درآمد نہیں",
+  "import.historyEmptyDesc":
+    "اوپر بینک کی CSV فائل اپ لوڈ کریں — جائزہ اور تصدیق کے بعد ہی لین دین محفوظ ہوں گے۔",
+  "import.status.preview": "جائزہ زیرِ التوا",
+  "import.status.confirmed": "مکمل",
+  "import.status.failed": "ناکام",
+  "import.resume": "جاری رکھیں",
+  "import.successTitle": "درآمد مکمل",
+  "import.successDescPrefix": "",
+  "import.successDescSuffix": " لین دین کامیابی سے شامل ہو گئے",
+  "import.cancelled": "درآمد منسوخ کر دی گئی",
+
+  // Import — errors
+  "import.error.unsupportedType":
+    "صرف CSV فائل سپورٹ ہے — براہ کرم اسٹیٹمنٹ CSV میں محفوظ کریں۔",
+  "import.error.fileTooLarge": "فائل بہت بڑی ہے — حد 5 MB ہے۔",
+  "import.error.tooManyRows": "فائل میں 500 سے زیادہ سطریں ہیں۔",
+  "import.error.csvEmpty": "فائل خالی ہے۔",
+  "import.error.csvEncoding": "فائل درست UTF-8 CSV نہیں ہے۔",
+  "import.error.csvNoHeaders": "CSV میں ہیڈر سطر نہیں ملی۔",
+  "import.error.csvNoRows": "فائل میں کوئی ڈیٹا سطر نہیں۔",
+  "import.error.csvMalformed": "CSV فائل خراب ہے۔",
+  "import.error.missingColumns":
+    "ضروری کالم نہیں ملے (تاریخ، تفصیل، رقم) — معیاری بینک CSV استعمال کریں۔",
+  "import.error.noValidRows":
+    "کوئی درست لین دین نہیں ملا — تاریخ اور رقم کے کالم چیک کریں۔",
+  "import.error.server": "درآمد میں مسئلہ آ گیا — دوبارہ کوشش کریں۔",
 
   // ─── Auth ─────────────────────────────────────────────────────────────────────
   "auth.login": "لاگ ان",

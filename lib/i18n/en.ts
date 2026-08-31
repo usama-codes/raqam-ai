@@ -328,12 +328,68 @@ export const en = {
 
   // ─── Import ───────────────────────────────────────────────────────────────────
   "import.title": "Import Bank Statement",
-  "import.subtitle": "Upload a CSV or PDF file",
+  "import.subtitle": "Upload a CSV file",
   "import.uploadLabel": "UPLOAD",
   "import.uploadTitle": "Import New File",
   "import.uploadDesc":
-    "CSV (up to 5 MB) or PDF statement (up to 10 MB) · up to 500 entries at once",
+    "Bank statement CSV (up to 5 MB) · up to 500 entries per batch · nothing is saved until you review",
   "import.selectFile": "Select File",
+  "import.uploading": "Uploading and parsing…",
+
+  // Import — preview table
+  "import.previewTitle": "Review Import",
+  "import.rowsLabel": "rows",
+  "import.importedLabel": "imported",
+  "import.duplicate": "duplicate",
+  "import.skippedRowsPrefix": "skipped: ",
+  "import.skippedRowsSuffix": " (unreadable date or amount)",
+  "import.duplicateHint":
+    "Duplicate rows start unselected — only select them if you're sure.",
+  "import.selectRow": "Select row",
+  "import.colDate": "Date",
+  "import.colDescription": "Description",
+  "import.colAmount": "Amount",
+  "import.colType": "Type",
+  "import.colCategory": "Category",
+  "import.pickCategory": "Pick a category",
+  "import.showMore": "Show more",
+  "import.selectedPrefix": "selected: ",
+  "import.selectedSuffix": " of ",
+  "import.fixRowsPrefix": "",
+  "import.fixRowsSuffix":
+    " selected rows need a valid amount, date, or category",
+  "import.confirmImport": "Import",
+  "import.cancelImport": "Cancel Import",
+
+  // Import — history
+  "import.historyTitle": "Import History",
+  "import.historyEmptyTitle": "No imports yet",
+  "import.historyEmptyDesc":
+    "Upload a bank CSV above — nothing is saved until you review and confirm.",
+  "import.status.preview": "In Preview",
+  "import.status.confirmed": "Confirmed",
+  "import.status.failed": "Failed",
+  "import.resume": "Resume",
+  "import.successTitle": "Import Complete",
+  "import.successDescPrefix": "",
+  "import.successDescSuffix": " transactions imported successfully",
+  "import.cancelled": "Import cancelled",
+
+  // Import — errors
+  "import.error.unsupportedType":
+    "Only CSV files are supported — please export your statement as CSV.",
+  "import.error.fileTooLarge": "File is too large — the limit is 5 MB.",
+  "import.error.tooManyRows": "The file has more than 500 rows.",
+  "import.error.csvEmpty": "The file is empty.",
+  "import.error.csvEncoding": "The file is not valid UTF-8 CSV.",
+  "import.error.csvNoHeaders": "No header row found in the CSV.",
+  "import.error.csvNoRows": "No data rows found in the file.",
+  "import.error.csvMalformed": "The CSV file is malformed.",
+  "import.error.missingColumns":
+    "Could not detect required columns (date, description, amount) — please use a standard bank CSV.",
+  "import.error.noValidRows":
+    "No valid transactions found — check the date and amount columns.",
+  "import.error.server": "Import failed — please try again.",
 
   // ─── Auth ─────────────────────────────────────────────────────────────────────
   "auth.login": "Log In",

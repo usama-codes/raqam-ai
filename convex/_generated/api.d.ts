@@ -15,6 +15,7 @@ import type * as budgets from "../budgets.js";
 import type * as categories from "../categories.js";
 import type * as conversations from "../conversations.js";
 import type * as goals from "../goals.js";
+import type * as imports from "../imports.js";
 import type * as pendingActions from "../pendingActions.js";
 import type * as summary from "../summary.js";
 import type * as transactions from "../transactions.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   conversations: typeof conversations;
   goals: typeof goals;
+  imports: typeof imports;
   pendingActions: typeof pendingActions;
   summary: typeof summary;
   transactions: typeof transactions;

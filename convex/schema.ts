@@ -136,6 +136,9 @@ export default defineSchema({
     userId: v.id("users"),
     fileName: v.string(),
     fileType: v.union(v.literal("csv"), v.literal("pdf"), v.literal("xlsx")),
+    // Raw uploaded file in Convex file storage (audit trail; optional so a
+    // failed storage upload never blocks an otherwise valid import).
+    storageId: v.optional(v.id("_storage")),
     status: v.union(
       v.literal("uploaded"),
       v.literal("parsing"),
@@ -146,6 +149,8 @@ export default defineSchema({
     rowCount: v.optional(v.number()),
     importedCount: v.optional(v.number()),
     duplicateCount: v.optional(v.number()),
+    // Rows dropped during parsing (unparseable date/amount) — shown in preview.
+    skippedCount: v.optional(v.number()),
     errorMessage: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
