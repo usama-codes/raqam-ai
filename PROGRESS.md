@@ -1,6 +1,6 @@
 # PROGRESS.md — Raqam-AI Phase & Task Tracker
 
-> **Last updated:** 2026-08-31 (Phase 14 — Safety, Reliability & Testing)
+> **Last updated:** 2026-08-31 (Phase 15 — Hackathon Polish)
 > **Authoritative reference:** AGENTS.md §10 (Development Phases), §12 (Success Criteria), §14 (Definition of Done)
 
 ---
@@ -25,7 +25,7 @@
 | 12    | Bank Statement / CSV Intelligence | ✅ COMPLETE    | ✅ Passed  |
 | 13    | Proactive Financial Assistance    | ✅ COMPLETE    | 🟡 Manual  |
 | 14    | Safety, Reliability & Testing     | ✅ COMPLETE / 🟡 Manual | 🟡 Manual  |
-| 15    | Hackathon Polish                  | ⬜ NOT STARTED | ⬜ Pending |
+| 15    | Hackathon Polish                  | ✅ COMPLETE (code) | 🟡 Deploy manual |
 
 ---
 
@@ -1098,25 +1098,92 @@ Needs a browser + Clerk login. Seed data with
 
 ## Phase 15 — Hackathon Polish
 
-**Status:** ⬜ NOT STARTED
+**Status:** ✅ COMPLETE (code) — 🟡 deploy + judge-script manual
 **Dependencies:** Phase 14 complete
-**Exit gate:** ⬜ Pending — 5-minute judge demo script works on first attempt.
+**Exit gate:** 🟡 Manual — automated suite green; the 5-minute judge script runs
+on the **deployed** site (`docs/DEPLOY.md`).
+**Spec:** `docs/superpowers/specs/2026-08-31-phase-15-hackathon-polish.md`
+
+**Decisions (grill-me):** full code scope + all 3 Phase-14 carry-overs, deploy
+left to the user; landing = full pitch page with a scripted assistant demo and a
+ur/en header toggle; onboarding = dedicated skippable `/onboarding` route; demo =
+`seed:demo` script for one designated Clerk account; `auditLog` = AI-initiated
+mutations only; perf = measure + low-risk fixes (no RSC rewrite).
 
 ### Implementation requirements
 
-- [ ] Onboarding: 3-step Urdu onboarding card for first-time users
-- [ ] Demo mode: hardcoded test user with realistic history (isolated)
-- [ ] Landing page: product pitch in Urdu and English
-- [ ] Performance: dashboard loads <1.5s on moderate connection
-- [ ] Remove all console.log, debug code, TODO comments from production
-- [ ] Verify all API keys in env vars, not committed
-- [ ] Deploy to Vercel + Convex production
+- [x] Onboarding: 3-step first-run flow — `/onboarding` route (own layout),
+      steps = monthly income → first budget → assistant intro; every step
+      skippable; `users.onboardingCompletedAt` + `OnboardingGuard` redirect.
+- [x] Demo mode: `convex/seed.ts → seed:demo` (superset of the old
+      `proactiveDemo`) — ~40 txns / 3 months, budget with food ~88%, utilities
+      anomaly, 2 goals, 2 recurring bills, 3 past conversations; stamps
+      onboarding done. `tests/integration/seed.test.ts` guards its shape.
+- [x] Landing page: `app/page.tsx` renders `<Landing/>` for logged-out visitors.
+      Bilingual (ur/en header toggle, `dir` flips), scripted `LandingChatDemo`,
+      feature grid, safety section. Self-contained, no new deps.
+- [x] Performance: dashboard staged rendering — header + alerts paint
+      immediately, each region fills in on its own query (was: one gate on the
+      slowest of 3). Empty-state check fixed (was dead post-load). Precise
+      First-Load-JS not emitted by the Turbopack build — real cold-load timing
+      is a deployed-site check below.
+- [x] Console/debug/TODO sweep — **already clean**: zero `console.log` /
+      `TODO` / `FIXME` in `app`·`lib`·`hooks`·`convex`·`components` (only
+      `console.warn`/`console.error` on real error paths, kept per §8; `.log`
+      only in `tests/live/**`).
+- [x] API keys — `.gitignore` covers `.env*.local` / `.env`;
+      `git ls-files` shows only `.env.example` (verified). `.env.example`
+      lists every key with the "set on the Convex deployment" note.
+- [ ] Deploy to Vercel + Convex production — **left for the user**,
+      `docs/DEPLOY.md` is the checklist.
+
+### Carry-overs from Phase 14 (done this phase)
+
+| Item | Resolution |
+| --- | --- |
+| `confirmAction` "failed" status unreachable | `confirmAction` now **returns** `{ success:false, error }` on executor failure instead of re-throwing (the throw rolled back the "failed" patch). Executors validate-before-write so the return path never commits partial data. `useAssistant` re-throws so the card shows the failed state. Test rewritten. |
+| `auditLog` table missing (§6, §9) | Added the table (§6 shape). `logAudit()` helper wired into the 3 `confirmAction` executors (`source:"ai"`) + `imports.confirmImport` (`source:"user"`). Auth-scoped `auditLog.list` query. Manual CRUD not logged (grill-me decision). New `tests/integration/audit-log.test.ts`. **§12 "Confirmation gate" / §9 audit criterion → met.** |
+| `@clerk/ui` npm-audit chain | `npm uninstall @clerk/ui` → **338 packages removed**, `npm audit` now **0 vulnerabilities** (was 7 high / 12 moderate). Inline `appearance={{ variables }}` on `<ClerkProvider>`; `@clerk/ui` CSS import dropped. AUDIT.md §12.2. |
+
+### Commits
+
+1. `feat(schema): auditLog table + users.onboardingCompletedAt`
+2. `feat(convex): auditLog writes + confirmAction failure path`
+3. `feat(convex): seed:demo — realistic judge-demo dataset`
+4. `chore(auth): drop @clerk/ui, inline Clerk appearance`
+5. `feat(onboarding): 3-step first-run flow`
+6. `feat(landing): bilingual pitch page at /`
+7. `perf(dashboard): stage rendering, don't block on the slowest query`
+8. `chore: Phase 15 cleanup sweep + docs`
+
+### Automated gate (green)
+
+`npm run typecheck` · `lint` (0 errors, 6 pre-existing warnings) · `test`
+(**200 passing, 3 self-skipping live**, 24 files) · `next build` (12 routes:
+`/onboarding` added) · `npx convex codegen` · `npm audit` (**0**).
+
+New tests: `tests/integration/{audit-log,seed}.test.ts`; cases added to
+`confirmation-gate` and `users`.
+
+### Manual — left for the user (`docs/DEPLOY.md` §5)
+
+- [ ] Deploy (Vercel + Convex prod, prod Clerk instance, prod env vars).
+- [ ] Seed the demo account: `npx convex run seed:demo '{"email":"..."}' --prod`.
+- [ ] `/login` + `/signup` look on-brand after the `@clerk/ui` removal.
+- [ ] `/onboarding` — 3 steps at 320 px RTL; skip + finish both work.
+- [ ] Landing — ur⇄en toggle, both `dir`s, at 320 / 768 / 1280 px; scripted
+      chat loops; CTAs → `/signup`.
+- [ ] Dashboard cold-load feels < 1.5 s on the deployed site.
+- [ ] Full 5-minute judge script (DEPLOY.md §5) works first try.
+- [ ] Phase 14 browser checklist items still open (RTL@320, responsive,
+      mutation-failure toast, AI-failure message, ambiguous Urdu).
 
 ### Success criteria
 
-- [ ] App deployed at public URL
-- [ ] Demo user produces compelling judge walkthrough in <5 minutes
-- [ ] All Tier 1 features working end-to-end with real data
+- [x] Onboarding / demo / landing / perf / cleanup / key-audit — code complete
+- [ ] App deployed at a public URL — **user**
+- [ ] Demo user produces a compelling judge walkthrough in < 5 minutes — **user**
+- [ ] All Tier 1 features working end-to-end with real data — verify on deploy
 
 ---
 
