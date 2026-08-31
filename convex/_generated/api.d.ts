@@ -19,6 +19,7 @@ import type * as imports from "../imports.js";
 import type * as pendingActions from "../pendingActions.js";
 import type * as proactive from "../proactive.js";
 import type * as recurring from "../recurring.js";
+import type * as seed from "../seed.js";
 import type * as summary from "../summary.js";
 import type * as transactions from "../transactions.js";
 import type * as users from "../users.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   pendingActions: typeof pendingActions;
   proactive: typeof proactive;
   recurring: typeof recurring;
+  seed: typeof seed;
   summary: typeof summary;
   transactions: typeof transactions;
   users: typeof users;

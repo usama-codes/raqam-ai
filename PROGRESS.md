@@ -971,19 +971,28 @@ dashboard card, **not** a written conversation message. No `lib/ai/` changes.
 - [x] `tests/unit/unusual-spend.test.ts` — each guard filters correctly, sort + cap to 2, zero-average safe
 - [x] `tests/unit/month-summary.test.ts` — totals, savings rate, top-3, delta vs prior, null delta, no-income
 - [x] `tests/unit/calculations.test.ts` — `budgetThresholdSeverity` boundaries
-- [x] `tsc --noEmit`, `eslint` (0 errors), `vitest` (104 unit), `next build` (11 routes), `npx convex codegen` — all green
-- [ ] **Manual exit gate** (needs running Convex + Clerk + seeded data):
-  1. Push a budget category past 80% then 100% → warning card then over card on
-     the dashboard; dismiss → gone; reload → still gone this month.
-  2. Add a recurring bill due tomorrow → reminder banner; "ادا شدہ" with the
-     checkbox on → `nextDueDate` advances one cycle, an expense transaction
-     appears, banner clears.
-  3. With 2+ months of history, spike a category ≥30% past the Rs. floors →
-     unusual-spending card appears.
-  4. First dashboard load of a new month (or reset `lastSummaryDismissedMonth`)
-     → summary card; dismiss → does not return this month.
-  5. Toggle each notification off in Settings → the matching surface stops
-     appearing.
+- [x] **`tests/integration/proactive.test.ts`** (convex-test, 7 tests) — exit-gate
+      logic verified headlessly: budget warning → escalates to "over"; dismissal
+      per period + `budget80` pref; unusual spending flagged with history / ignored
+      without; bill reminder + `markPaid` (advances date, logs linked expense);
+      overdue flag; monthly summary shows once then hides after dismiss; hidden
+      when no prior-month data
+- [x] `tsc --noEmit`, `eslint` (0 errors), `vitest` (111 unit + integration),
+      `next build` (11 routes), `npx convex codegen` — all green
+- [~] **Manual exit gate — visual/UX pass** (needs a browser + Clerk login).
+      Seed helper: `npx convex run seed:proactiveDemo '{"email":"<you>@..."}'`
+      (undo: `seed:clearDemo`). Then on `/dashboard`:
+  1. Budget warning card (food ~87%); add a food expense in the UI to push it
+     past 100% → card flips to "بجٹ سے تجاوز"; ✕ dismiss → gone; reload → still
+     gone this month.
+  2. Bill reminder "بجلی کا بل" due tomorrow → "ادا شدہ" with the checkbox on →
+     banner clears, an expense appears in `/transactions`, next-due advances a
+     month (check `/budgets` → باقاعدہ بل).
+  3. Unusual-spending card (utilities +60%).
+  4. Monthly summary card (last month, income 85,000); "ٹھیک ہے" → does not
+     return.
+  5. Settings → toggle each of the 5 notifications off → the matching surface
+     stops appearing.
 
 ### Success criteria
 
@@ -1000,17 +1009,19 @@ dashboard card, **not** a written conversation message. No `lib/ai/` changes.
 **Dependencies:** All prior phases complete
 **Exit gate:** ⬜ Pending — Full test run with zero failures; auth isolation verified with two real users.
 
-**Harness in place (2026-08-30):** `vitest` `4.1.11` + `vitest.config.mts`,
-`npm run test` / `npm run typecheck`, and `.github/workflows/ci.yml`
-(`npm ci → typecheck → lint → test` on every push to `main` and every PR).
-Current suite: 78 unit tests across
-`tests/unit/{transcription,wav,calculations,import}.test.ts`, plus a self-skipping
+**Harness in place (2026-08-30, extended 2026-08-31):** `vitest` `4.1.11` +
+`vitest.config.mts`, `npm run test` / `npm run typecheck`, and
+`.github/workflows/ci.yml` (`npm ci → typecheck → lint → test` on every push to
+`main` and every PR). Current suite: 111 unit tests across
+`tests/unit/{transcription,wav,calculations,import,recurring-schedule,unusual-spend,month-summary}.test.ts`;
+**Convex integration** via `convex-test` `0.0.56` + `@edge-runtime/vm` in
+`tests/integration/**` (`proactive.test.ts` — 7 tests); plus a self-skipping
 `tests/live/transcription.live.test.ts` that hits the real AssemblyAI API.
 
 ### Implementation requirements
 
-- [~] Unit tests for all `lib/finance/` functions — `calculations.ts`, `import/csv.ts`, `import/normalizer.ts` covered (Phase 12 adds 39 tests); `categories.ts` is a static taxonomy table (no logic)
-- [ ] Integration tests for all Convex mutations (auth, validation, authorization)
+- [~] Unit tests for all `lib/finance/` functions — `calculations.ts`, `import/csv.ts`, `import/normalizer.ts`, `recurring-schedule.ts`, `unusual-spend.ts`, `month-summary.ts` covered; `categories.ts` is a static taxonomy table (no logic)
+- [~] Integration tests for all Convex mutations (auth, validation, authorization) — harness in place (`convex-test`, `tests/integration/**`); `proactive.*` + `recurring.*` covered by `tests/integration/proactive.test.ts`; the rest (transactions, budgets, goals, pendingActions, imports) still to do
 - [ ] Integration tests for confirmation gate cycle
 - [ ] AI tool schema validation tests
 - [~] Financial calculations tested against manually computed values — `calculations.ts` done
