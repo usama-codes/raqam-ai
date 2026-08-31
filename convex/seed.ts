@@ -36,14 +36,32 @@ async function wipeUserFinance(ctx: MutationCtx, userId: Id<"users">) {
       .collect();
     for (const row of rows) await ctx.db.delete(row._id);
   }
-  // `budgets` is indexed by ["userId", "month"] — the userId prefix still works.
-  const budgets = await ctx.db
-    .query("budgets")
-    .withIndex("by_userId_month", (q) => q.eq("userId", userId))
-    .collect();
-  for (const b of budgets) await ctx.db.delete(b._id);
-
+  // NOTE: budget *rows* are intentionally NOT deleted here. A live reactive
+  // `budgets.getBudgetCategories(budgetId)` on an open Budgets page throws if the
+  // budget id it is holding vanishes mid-session. `proactiveDemo` reuses the
+  // current-month budget instead (find-or-create).
   await ctx.db.patch(userId, { lastSummaryDismissedMonth: undefined });
+}
+
+/** Find the current-month budget for a user, creating it if absent. */
+async function ensureCurrentMonthBudget(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<Id<"budgets">> {
+  const existing = await ctx.db
+    .query("budgets")
+    .withIndex("by_userId_month", (q) =>
+      q.eq("userId", userId).eq("month", monthStart(0)),
+    )
+    .first();
+  if (existing) return existing._id;
+  const stamp = Date.now();
+  return ctx.db.insert("budgets", {
+    userId,
+    month: monthStart(0),
+    createdAt: stamp,
+    updatedAt: stamp,
+  });
 }
 
 export const proactiveDemo = mutation({
@@ -95,12 +113,7 @@ export const proactiveDemo = mutation({
       });
 
     // ── Budget warning: food at ~87% of a 6,000 limit ──────────────────────
-    const budgetId = await ctx.db.insert("budgets", {
-      userId,
-      month: monthStart(0),
-      createdAt: stamp,
-      updatedAt: stamp,
-    });
+    const budgetId = await ensureCurrentMonthBudget(ctx, userId);
     await ctx.db.insert("budgetCategories", {
       budgetId,
       userId,
