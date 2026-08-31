@@ -189,6 +189,33 @@ Additions made after Phase 0, recorded here per AGENTS.md §15 ("Introducing a n
 | 2026-08-31 | `papaparse` `5.7.0` + `@types/papaparse` `5.5.2` | dependency + devDependency (CSV parsing) | Phase 12 bank-statement import. Battle-tested RFC-4180 parser (quoted commas, CRLF, BOM) instead of hand-rolled CSV splitting. Runs **client-side only** — `convex/imports.ts` imports just the pure normalizer, so papaparse never enters the Convex bundle. Pinned exact; `npm audit`: zero advisories from this package.                                                 |
 | 2026-08-31 | Phase 13 — Proactive Financial Assistance         | **no new runtime packages**               | Budget/anomaly/bill/summary alerts + recurring-bill CRUD. New `lib/finance/` pure modules, `convex/recurring.ts` + `convex/proactive.ts`, `dismissedAlerts` table, dashboard alert region. `framer-motion` scope unchanged (used `tw-animate-css`, already present). `npm install` was run once to restore `papaparse` / `@types/papaparse` into `node_modules` (declared in Phase 12, never installed here). |
 | 2026-08-31 | `convex-test` `0.0.56` + `@edge-runtime/vm` `5.0.0` | devDependencies (Convex integration tests) | Headless verification of Phase 13's Convex queries/mutations (`tests/integration/proactive.test.ts`) — seeds a scenario, runs `proactive.*` / `recurring.*` against convex-test's in-memory backend, no deployment or Clerk. Seeds AGENTS.md Phase 14 ("Integration tests for all Convex mutations"). Pinned exact. Zero runtime/bundle footprint; `tests/integration/**` files opt into the edge-runtime env via a per-file pragma. `convex/seed.ts` (`proactiveDemo` / `clearDemo`) is a CLI-only dev helper, not imported by the app. |
+| 2026-08-31 | Phase 14 — Safety, Reliability & Testing           | **no new packages**                        | Full automated test pass: `tests/unit/{anomaly,projections,ai-schemas}.test.ts`, `tests/integration/{transactions,budgets,goals,categories,imports,summary,users,confirmation-gate,auth-isolation}.test.ts` (+ shared `tests/integration/_helpers.ts`), `tests/live/ai.live.test.ts` (self-skips without `GOOGLE_GENERATIVE_AI_API_KEY`). Suite total: **193 passing, 3 self-skipping live**. Two source fixes: `convex/assistant.ts#getConversationHistory` (added the missing auth + ownership check) and `convex/budgets.ts#getBudgetCategories` (`[]` instead of throw for a stale/foreign budget id). |
+
+### 12.1 `npm audit` — Phase 14 review (2026-08-31)
+
+`npm audit`: **0 critical, 7 high, 12 moderate, 19 total.** All 19 are transitive
+under a single direct dependency, **`@clerk/ui`** (used only for the Clerk `shadcn`
+appearance theme — `app/layout.tsx` `import { shadcn } from "@clerk/ui/themes"` +
+`app/globals.css` `@import "@clerk/ui/themes/shadcn.css"`).
+
+| Advisory group | Severity | Path | Exploit path in this app |
+| --- | --- | --- | --- |
+| `image-size` (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq) — ICNS / JXL / HEIF parser infinite-loop DoS | high ×2 | `@clerk/ui` → `@solana/wallet-adapter-react` → `react-native` → `metro` → `image-size` | **None.** No patched `image-size` exists (2.0.2 is latest; advisories cover `<=2.0.2`). Metro/RN bundler never runs; no ICNS/JXL/HEIF parsing anywhere. |
+| `metro`, `metro-config`, `metro-transform-worker` — via `image-size` | high ×3 | same RN toolchain subtree | **None.** This is a Next.js web app; Metro is never invoked. |
+| `react-native`, `@react-native/community-cli-plugin`, `@react-native/virtualized-lists` | high ×2 + mod | `@clerk/ui` → `@solana/wallet-adapter-react` → `@solana-mobile/wallet-adapter-mobile` | **None.** `react-native` is never imported, bundled, or executed. |
+| `@solana/web3.js` (via `jayson` → `uuid` buffer bounds check), `@solana/wallet-*`, `@clerk/ui` | moderate ×9 | Clerk Web3 wallet sign-in (unused) | **None.** No crypto-wallet auth is wired; `@clerk/nextjs` handles all auth. |
+
+**Decision (grill-me):** documented as accepted for the hackathon — 0 critical, and
+every high is a `CWE-835` infinite-loop DoS in React-Native / Metro build tooling
+that is transitively present but never loaded on any code path of this deployment.
+`npm audit fix` does not help (it wants to *add* ~124 RN packages); there is no
+patched `image-size`.
+
+**Phase 15 action item:** remove `@clerk/ui`. Replace `appearance={shadcn}` with an
+inline Clerk `appearance` object (or `@clerk/themes`, which has no Solana / React
+Native dependency tree). That drops all 19 advisories and a large slice of
+`node_modules`. Deferred here because it changes the look of the login / signup
+screens and needs a visual pass.
 
 ---
 
