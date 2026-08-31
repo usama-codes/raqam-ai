@@ -1,6 +1,6 @@
 # PROGRESS.md — Raqam-AI Phase & Task Tracker
 
-> **Last updated:** 2026-08-31
+> **Last updated:** 2026-08-31 (Phase 13 — Proactive Financial Assistance)
 > **Authoritative reference:** AGENTS.md §10 (Development Phases), §12 (Success Criteria), §14 (Definition of Done)
 
 ---
@@ -23,7 +23,7 @@
 | 11    | Multimodal Accessibility          | ✅ COMPLETE    | ✅ Passed  |
 | 11.1  | Transcription engine (AssemblyAI) | ✅ COMPLETE    | ✅ Passed  |
 | 12    | Bank Statement / CSV Intelligence | ✅ COMPLETE    | ✅ Passed  |
-| 13    | Proactive Financial Assistance    | ⬜ NOT STARTED | ⬜ Pending |
+| 13    | Proactive Financial Assistance    | ✅ COMPLETE    | 🟡 Manual  |
 | 14    | Safety, Reliability & Testing     | 🟡 STARTED     | ⬜ Pending |
 | 15    | Hackathon Polish                  | ⬜ NOT STARTED | ⬜ Pending |
 
@@ -909,30 +909,88 @@ row in the preview).
 
 ## Phase 13 — Proactive Financial Assistance
 
-**Status:** ⬜ NOT STARTED
+**Status:** ✅ COMPLETE (code) — 🟡 manual exit gate pending
 **Dependencies:** Phase 10 complete
-**Exit gate:** ⬜ Pending — Trigger each of 3 alert types, confirm they appear and can be dismissed.
+**Exit gate:** 🟡 Manual — trigger each alert type with real data (steps below).
+**Spec:** `docs/superpowers/specs/2026-08-31-proactive-assistance.md`
+
+**Model (grill-me interview):** alerts are **derived live on read** from current
+data (`convex/proactive.ts#getAlerts`); the only thing persisted is dismissals
+(`dismissedAlerts` table, keyed by `alertKey` + `periodKey`) and the monthly
+summary high-water mark (`users.lastSummaryDismissedMonth`). No generator, no
+cron. The "assistant message" for budget warnings is an assistant-styled
+dashboard card, **not** a written conversation message. No `lib/ai/` changes.
 
 ### Implementation requirements
 
-- [ ] Budget warnings: toast + assistant message at 80% and 100% utilization
-- [ ] Recurring expense reminders: banner on login if `nextDueDate` within 3 days
-- [ ] Unusual spending alert: dashboard card if category >30% above 3-month rolling average
-- [ ] Monthly summary: "Pichle mahine ka khulaasah" button on first login of new month
-- [ ] All proactive features disableable per-category in settings
+- [x] Budget warnings: entry-time toast (`transactions/page.tsx`, all severities
+      via shared `budgetThresholdSeverity`) **+** a persistent dismissible
+      dashboard card that covers every entry path (AI / import / voice / receipt)
+- [x] Recurring expense reminders: dashboard banner for bills due within 3 days
+      **or overdue**; "ادا شدہ" advances `nextDueDate` one cycle and optionally
+      logs the expense (atomic `recurring.markPaid`)
+- [x] Unusual spending alert: dashboard card, `>30%` over 3-month rolling average
+      **with noise guards** (avg ≥ Rs. 1,000, overspend ≥ Rs. 500, 2+ months of
+      history, top 2 by deviation)
+- [x] Monthly summary: dismissible recap card on the first dashboard visit of a
+      new month when last month had data (`getMonthlySummary`, deterministic
+      `lib/finance/month-summary.ts`)
+- [x] All proactive features disableable in settings — the 5 toggles now
+      read/write `users.notificationPrefs` (`updateNotificationPrefs`)
+
+### Files created
+
+| File | Purpose |
+| --- | --- |
+| `lib/finance/recurring-schedule.ts` | `advanceDueDate` / `nextFutureDueDate` — frequency roll-forward with month-length clamping |
+| `lib/finance/unusual-spend.ts` | `flagUnusualSpending` — 30% rule + absolute-floor / history guards |
+| `lib/finance/month-summary.ts` | `summarizeMonth` — deterministic last-month recap |
+| `convex/recurring.ts` | recurring-bill CRUD + `markPaid` (atomic due-date bump + optional txn) |
+| `convex/proactive.ts` | `getAlerts`, `dismissAlert`, `getMonthlySummary`, `dismissMonthlySummary` |
+| `hooks/useRecurring.ts`, `hooks/useProactiveAlerts.ts`, `hooks/useMonthlySummary.ts`, `hooks/useNotificationPrefs.ts` | client wrappers |
+| `components/dashboard/ProactiveAlerts.tsx` | stacked dashboard alert region |
+| `components/budgets/RecurringBillsSection.tsx` | recurring-bill manager on the Budgets page |
+
+### Files updated
+
+| File | Change |
+| --- | --- |
+| `convex/schema.ts` | `users.notificationPrefs`, `users.lastSummaryDismissedMonth`, new `dismissedAlerts` table |
+| `convex/users.ts` | `updateNotificationPrefs` mutation |
+| `convex/summary.ts` | `getIntelligenceData` also returns `monthsWithSpend` per category |
+| `lib/finance/calculations.ts` | `budgetThresholdSeverity` (shared by the toast + the card) |
+| `app/(app)/dashboard/page.tsx` | mounts `<ProactiveAlerts />` above the stat cards |
+| `app/(app)/budgets/page.tsx` | mounts `<RecurringBillsSection />` |
+| `app/(app)/settings/page.tsx` | notification toggles wired to `notificationPrefs` |
+| `app/(app)/transactions/page.tsx` | budget-warning toast uses `budgetThresholdSeverity` |
+| `lib/i18n/{ur,en}.ts` | `proactive.*` / `summary.*` / `recurring.*` keys |
 
 ### Tests
 
-- [ ] Transaction at 81% → warning appears
-- [ ] Recurring expense due in 2 days → reminder banner visible
-- [ ] Category 40% above average → anomaly card visible
+- [x] `tests/unit/recurring-schedule.test.ts` — every frequency, month clamp (Jan 31→Feb 28/29, Aug 31→Sep 30), Dec→Jan, leap year, `nextFutureDueDate`
+- [x] `tests/unit/unusual-spend.test.ts` — each guard filters correctly, sort + cap to 2, zero-average safe
+- [x] `tests/unit/month-summary.test.ts` — totals, savings rate, top-3, delta vs prior, null delta, no-income
+- [x] `tests/unit/calculations.test.ts` — `budgetThresholdSeverity` boundaries
+- [x] `tsc --noEmit`, `eslint` (0 errors), `vitest` (104 unit), `next build` (11 routes), `npx convex codegen` — all green
+- [ ] **Manual exit gate** (needs running Convex + Clerk + seeded data):
+  1. Push a budget category past 80% then 100% → warning card then over card on
+     the dashboard; dismiss → gone; reload → still gone this month.
+  2. Add a recurring bill due tomorrow → reminder banner; "ادا شدہ" with the
+     checkbox on → `nextDueDate` advances one cycle, an expense transaction
+     appears, banner clears.
+  3. With 2+ months of history, spike a category ≥30% past the Rs. floors →
+     unusual-spending card appears.
+  4. First dashboard load of a new month (or reset `lastSummaryDismissedMonth`)
+     → summary card; dismiss → does not return this month.
+  5. Toggle each notification off in Settings → the matching surface stops
+     appearing.
 
 ### Success criteria
 
-- [ ] Budget warnings at correct thresholds
-- [ ] Recurring reminders at correct intervals
-- [ ] Anomaly detection surfaces real data-driven alert
-- [ ] All alerts dismissible
+- [x] Budget warnings at correct thresholds (shared `budgetThresholdSeverity`)
+- [x] Recurring reminders at correct intervals (≤ 3 days out, or overdue)
+- [x] Anomaly detection surfaces a data-driven alert (pure `flagUnusualSpending`)
+- [x] All alerts dismissible (per-period `dismissedAlerts`)
 
 ---
 
