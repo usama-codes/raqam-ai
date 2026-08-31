@@ -24,6 +24,9 @@ export default defineSchema({
     // High-water mark: month-start Unix ms of the last monthly summary the user
     // dismissed. A later month re-triggers the summary card.
     lastSummaryDismissedMonth: v.optional(v.number()),
+    // Phase 15 — set once the user finishes (or skips) the /onboarding flow.
+    // Absent ⇒ first-run: the app redirects to /onboarding.
+    onboardingCompletedAt: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_clerkId", ["clerkId"]),
 
@@ -255,4 +258,20 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_conversationId", ["conversationId"]),
+
+  // ─── Audit Log (AGENTS.md §6) ─────────────────────────────────────────────
+  // Append-only trail. Phase 15 wires the AI-initiated write paths only:
+  // the confirmAction executors (source "ai") and import confirmation
+  // (source "user"). Manual CRUD is intentionally not logged for the
+  // hackathon build. The one table with no ownership-check requirement on
+  // read — but `list` is still auth-scoped by userId.
+  auditLog: defineTable({
+    userId: v.id("users"),
+    action: v.string(), // e.g. "transaction.create"
+    entityType: v.string(),
+    entityId: v.optional(v.string()),
+    metadata: v.optional(v.string()), // JSON stringified
+    source: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
 });
