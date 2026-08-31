@@ -25,10 +25,19 @@ export const getPreferredLanguage = query({
 
 /**
  * Get conversation history for the AI context window (last 10 messages).
+ * Ownership-checked: the conversation must belong to the authenticated caller
+ * (same guard as conversations.getMessages).
  */
 export const getConversationHistory = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx: QueryCtx, args) => {
+    const user = await requireUser(ctx);
+
+    const conv = await ctx.db.get(args.conversationId);
+    if (!conv || conv.userId !== user._id) {
+      throw new Error("Conversation not found");
+    }
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
