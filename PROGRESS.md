@@ -980,9 +980,9 @@ dashboard card, **not** a written conversation message. No `lib/ai/` changes.
 - [x] `tsc --noEmit`, `eslint` (0 errors), `vitest` (111 unit + integration),
       `next build` (11 routes), `npx convex codegen` — all green
 - [~] **Manual exit gate — visual/UX pass** (needs a browser + Clerk login).
-      Seed helper: `npx convex run seed:proactiveDemo '{"email":"<you>@..."}'`
-      (undo: `seed:clearDemo`). Then on `/dashboard`:
-  1. Budget warning card (food ~87%); add a food expense in the UI to push it
+      Seed helper: `npx convex run seed:demo '{"email":"<you>@..."}'`
+      (undo: `seed:clearDemo`; Windows → run via Git Bash). Then on `/dashboard`:
+  1. Budget warning card (food ~88%); add a food expense in the UI to push it
      past 100% → card flips to "بجٹ سے تجاوز"; ✕ dismiss → gone; reload → still
      gone this month.
   2. Bill reminder "بجلی کا بل" due tomorrow → "ادا شدہ" with the checkbox on →
@@ -1062,7 +1062,7 @@ browser checks below are left for the user.
 ### Manual browser checklist — left for the user
 
 Needs a browser + Clerk login. Seed data with
-`npx convex run seed:proactiveDemo '{"email":"<you>@..."}'`.
+`npx convex run seed:demo '{"email":"<you>@..."}'` (Windows → Git Bash).
 
 - [ ] **Empty state** — a fresh account (or after `seed:clearDemo`): dashboard,
       transactions, budgets, goals, assistant all show their Urdu empty states, no
