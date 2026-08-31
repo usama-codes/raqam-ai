@@ -520,6 +520,28 @@ export const ur = {
   "recurring.toast.paid": "بل ادا شدہ — اگلی تاریخ مقرر ہو گئی",
   "recurring.toast.error": "کچھ مسئلہ ہوا، دوبارہ کوشش کریں",
   "recurring.toast.invalid": "براہ کرم درست تفصیل اور رقم درج کریں",
+
+  // ─── Onboarding (Phase 15) ────────────────────────────────────────────────────
+  "onboarding.welcome": "خوش آمدید — آئیے شروع کریں",
+  "onboarding.skip": "بعد میں",
+  "onboarding.back": "واپس",
+  "onboarding.next": "آگے",
+  "onboarding.finish": "مکمل کریں",
+  "onboarding.error": "کچھ مسئلہ ہوا، دوبارہ کوشش کریں",
+  "onboarding.s1.title": "ماہانہ آمدنی",
+  "onboarding.s1.desc":
+    "آپ کی تقریباً ماہانہ آمدنی کتنی ہے؟ ہم اسے اس مہینے کی آمدنی کے طور پر شامل کر دیں گے۔",
+  "onboarding.s1.label": "رقم (Rs.)",
+  "onboarding.s2.title": "پہلا بجٹ",
+  "onboarding.s2.desc":
+    "چند زمروں کے لیے ماہانہ حد مقرر کریں۔ خالی چھوڑ سکتے ہیں اور بعد میں تبدیل کر سکتے ہیں۔",
+  "onboarding.s3.title": "مددگار سے ملیں",
+  "onboarding.s3.desc":
+    "اپنی مالی صورتحال کے بارے میں اردو میں سوال کریں یا خرچہ شامل کروائیں۔ مثلاً:",
+  "onboarding.s3.example1": "اس مہینے کتنا خرچ ہوا؟",
+  "onboarding.s3.example2": "500 کا پیٹرول شامل کرو",
+  "onboarding.s3.example3": "کمیٹی کیا ہوتی ہے؟",
+  "onboarding.s3.cta": "مددگار کھولیں",
 } as const;
 
 export type TranslationKey = keyof typeof ur;

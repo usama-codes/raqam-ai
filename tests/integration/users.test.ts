@@ -58,6 +58,31 @@ describe("users.updateProfile / updateNotificationPrefs", () => {
   });
 });
 
+describe("users.completeOnboarding", () => {
+  test("stamps onboardingCompletedAt once; idempotent; needs auth", async () => {
+    const t = convexTest(schema, modules);
+    const asUser = t.withIdentity({ subject: SUBJECT_A });
+    await asUser.mutation(api.users.ensureUser, { email: "a@example.com" });
+
+    const before = await asUser.query(api.users.getCurrentUser, {});
+    expect(before?.onboardingCompletedAt).toBeUndefined();
+
+    await asUser.mutation(api.users.completeOnboarding, {});
+    const first = (await asUser.query(api.users.getCurrentUser, {}))
+      ?.onboardingCompletedAt;
+    expect(first).toBeTruthy();
+
+    await asUser.mutation(api.users.completeOnboarding, {});
+    const second = (await asUser.query(api.users.getCurrentUser, {}))
+      ?.onboardingCompletedAt;
+    expect(second).toBe(first); // not overwritten
+
+    await expect(
+      t.mutation(api.users.completeOnboarding, {}),
+    ).rejects.toThrow();
+  });
+});
+
 describe("auth guard", () => {
   test("an unauthenticated caller cannot read or write user data", async () => {
     const t = convexTest(schema, modules);

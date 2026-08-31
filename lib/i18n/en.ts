@@ -522,4 +522,26 @@ export const en = {
   "recurring.toast.paid": "Bill paid — next due date set",
   "recurring.toast.error": "Something went wrong, please try again",
   "recurring.toast.invalid": "Please enter a valid description and amount",
+
+  // ─── Onboarding (Phase 15) ────────────────────────────────────────────────────
+  "onboarding.welcome": "Welcome — let's get set up",
+  "onboarding.skip": "Later",
+  "onboarding.back": "Back",
+  "onboarding.next": "Next",
+  "onboarding.finish": "Finish",
+  "onboarding.error": "Something went wrong, please try again",
+  "onboarding.s1.title": "Monthly income",
+  "onboarding.s1.desc":
+    "Roughly how much do you earn each month? We'll add it as this month's income.",
+  "onboarding.s1.label": "Amount (Rs.)",
+  "onboarding.s2.title": "Your first budget",
+  "onboarding.s2.desc":
+    "Set a monthly limit for a few categories. You can leave these blank and change them later.",
+  "onboarding.s3.title": "Meet the assistant",
+  "onboarding.s3.desc":
+    "Ask about your finances in Urdu, or have it record an expense. For example:",
+  "onboarding.s3.example1": "How much did I spend this month?",
+  "onboarding.s3.example2": "Add 500 for petrol",
+  "onboarding.s3.example3": "What is a committee (ROSCA)?",
+  "onboarding.s3.cta": "Open the assistant",
 } as const;

@@ -114,6 +114,29 @@ export const updateProfile = mutation({
 });
 
 /**
+ * Mark the first-run onboarding as done (finished or skipped). Idempotent —
+ * the timestamp is only written once so a later "skip" never overwrites a
+ * genuine completion time. Phase 15.
+ */
+export const completeOnboarding = mutation({
+  args: {},
+  handler: async (ctx: MutationCtx) => {
+    const clerkId = await getUserId(ctx);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found. Call ensureUser first.");
+    }
+    if (user.onboardingCompletedAt === undefined) {
+      await ctx.db.patch(user._id, { onboardingCompletedAt: Date.now() });
+    }
+  },
+});
+
+/**
  * Update the user's proactive-notification preferences (Phase 13).
  * The whole object is written at once. Absent prefs are treated as all-on.
  */
