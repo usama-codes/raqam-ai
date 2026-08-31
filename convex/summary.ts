@@ -279,6 +279,7 @@ export const getIntelligenceData = query({
       nameUr: string;
       average: number;
       currentSpend: number;
+      monthsWithSpend: number;
     }> = [];
 
     const allCategoryIds = new Set<string>();
@@ -291,11 +292,14 @@ export const getIntelligenceData = query({
     for (const catId of allCategoryIds) {
       let total = 0;
       let count = 0;
+      let monthsWithSpend = 0;
       for (let i = 1; i <= 3; i++) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthMs = monthDate.getTime();
         const data = monthlyData.get(monthMs);
-        total += data?.categorySpending?.get(catId) ?? 0;
+        const monthSpend = data?.categorySpending?.get(catId) ?? 0;
+        total += monthSpend;
+        if (monthSpend > 0) monthsWithSpend++;
         count++;
       }
       const average = total / count;
@@ -308,6 +312,7 @@ export const getIntelligenceData = query({
         nameUr: cat?.nameUr ?? "نامعلوم",
         average,
         currentSpend,
+        monthsWithSpend,
       });
     }
 

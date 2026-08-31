@@ -11,6 +11,19 @@ export default defineSchema({
     name: v.optional(v.string()),
     preferredLanguage: v.union(v.literal("ur"), v.literal("en")),
     currency: v.string(),
+    // Phase 13 — proactive assistance. Absent ⇒ every alert type is on.
+    notificationPrefs: v.optional(
+      v.object({
+        budget80: v.boolean(),
+        budget100: v.boolean(),
+        billReminder: v.boolean(),
+        unusualSpend: v.boolean(),
+        monthlySummary: v.boolean(),
+      }),
+    ),
+    // High-water mark: month-start Unix ms of the last monthly summary the user
+    // dismissed. A later month re-triggers the summary card.
+    lastSummaryDismissedMonth: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_clerkId", ["clerkId"]),
 
@@ -201,6 +214,21 @@ export default defineSchema({
     ),
     createdAt: v.number(),
   }).index("by_conversationId", ["conversationId"]),
+
+  // ─── Dismissed Proactive Alerts (Phase 13) ────────────────────────────────
+  // One row per dismissal. The proactive alert query derives alerts live from
+  // current data and filters out any whose (alertKey, periodKey) pair is here.
+  // periodKey scoping means a dismissed budget alert re-appears next month if
+  // still over threshold, and a dismissed bill reminder re-appears on its next
+  // due cycle. The monthly summary uses users.lastSummaryDismissedMonth instead.
+  dismissedAlerts: defineTable({
+    userId: v.id("users"),
+    // "budget80:<catId>" | "budget100:<catId>" | "anomaly:<catId>" | "bill:<recurringId>"
+    alertKey: v.string(),
+    // month-start ms (budget/anomaly) or nextDueDate ms (bill), stringified
+    periodKey: v.string(),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
 
   // ─── Pending Actions (Phase 9 — AI confirmation gate) ──────────────────────
   pendingActions: defineTable({

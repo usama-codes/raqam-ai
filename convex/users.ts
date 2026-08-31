@@ -112,3 +112,43 @@ export const updateProfile = mutation({
     await ctx.db.patch(user._id, updates);
   },
 });
+
+/**
+ * Update the user's proactive-notification preferences (Phase 13).
+ * The whole object is written at once. Absent prefs are treated as all-on.
+ */
+export const updateNotificationPrefs = mutation({
+  args: {
+    prefs: v.object({
+      budget80: v.boolean(),
+      budget100: v.boolean(),
+      billReminder: v.boolean(),
+      unusualSpend: v.boolean(),
+      monthlySummary: v.boolean(),
+    }),
+  },
+  handler: async (
+    ctx: MutationCtx,
+    args: {
+      prefs: {
+        budget80: boolean;
+        budget100: boolean;
+        billReminder: boolean;
+        unusualSpend: boolean;
+        monthlySummary: boolean;
+      };
+    },
+  ) => {
+    const clerkId = await getUserId(ctx);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found. Call ensureUser first.");
+    }
+
+    await ctx.db.patch(user._id, { notificationPrefs: args.prefs });
+  },
+});
