@@ -105,6 +105,50 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return Buffer.from(bytes).toString("base64");
   }
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i++)
+    binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
+}
+
+/**
+ * Wrap raw signed 16-bit little-endian mono PCM — the format Gemini TTS
+ * returns — in a WAV container, so browsers can play it via
+ * `new Audio("data:audio/wav;base64,…")`.
+ */
+export function pcm16ToWav(pcm: Uint8Array, sampleRate: number): ArrayBuffer {
+  const bytesPerSample = 2;
+  const dataSize = pcm.byteLength;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, "WAVE");
+
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true); // fmt chunk length
+  view.setUint16(20, 1, true); // audio format = PCM
+  view.setUint16(22, 1, true); // channels = mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+  view.setUint16(32, bytesPerSample, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+
+  writeString(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+
+  new Uint8Array(buffer, 44).set(pcm);
+  return buffer;
+}
+
+/**
+ * Extract the sample rate from a Gemini TTS mimeType such as
+ * "audio/L16;codec=pcm;rate=24000". Falls back to the TTS default.
+ */
+export function parsePcmRate(
+  mimeType: string | null | undefined,
+  fallback = 24_000,
+): number {
+  const match = /rate=(\d+)/.exec(mimeType ?? "");
+  return match ? Number(match[1]) : fallback;
 }

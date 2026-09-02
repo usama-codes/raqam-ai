@@ -15,11 +15,13 @@ import {
   callGeminiWithFallback,
   TRANSCRIBE_MODELS,
   VISION_MODELS,
+  TTS_MODELS,
 } from "@/lib/ai/models";
 import {
   transcribeAudioChain,
   transcribeWithAssemblyAI,
 } from "@/lib/ai/transcription";
+import { synthesizeSpeechWithGemini, TTS_DEFAULT_VOICE } from "@/lib/ai/tts";
 
 /**
  * The main AI pipeline action. Called from the client hook.
@@ -173,6 +175,62 @@ export const transcribeAudio = action({
     );
 
     return result;
+  },
+});
+
+/**
+ * Text-to-speech — speaks the assistant's Urdu replies in the hands-free
+ * voice-call mode. Runs the Gemini TTS model chain in lib/ai/tts.ts and
+ * returns a base64 WAV; the browser's speechSynthesis (hooks/useSpeech.ts)
+ * is the fallback when this returns `audioBase64: null`.
+ */
+export const synthesizeSpeech = action({
+  args: { text: v.string() },
+  handler: async (ctx, args) => {
+    // §8: authenticated users only — no anonymous speech synthesis.
+    const user = await ctx.runQuery(api.users.getCurrentUser, {});
+    if (!user) {
+      return { audioBase64: null, error: "Not authenticated." };
+    }
+
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) {
+      return {
+        audioBase64: null,
+        error:
+          "TTS is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY in the Convex environment.",
+      };
+    }
+
+    if (!args.text.trim()) {
+      return { audioBase64: null, error: "Nothing to speak." };
+    }
+
+    // GEMINI_TTS_MODEL / GEMINI_TTS_VOICE override the defaults per deployment.
+    const override = process.env.GEMINI_TTS_MODEL;
+    const models = override
+      ? [override, ...TTS_MODELS.filter((m) => m !== override)]
+      : TTS_MODELS;
+    const voice = process.env.GEMINI_TTS_VOICE || TTS_DEFAULT_VOICE;
+
+    try {
+      const result = await synthesizeSpeechWithGemini({
+        apiKey,
+        text: args.text,
+        voice,
+        models,
+      });
+      return { audioBase64: result.wavBase64, error: null };
+    } catch (err) {
+      console.error(
+        "Gemini TTS failed — the client will fall back to browser speech:",
+        err instanceof Error ? err.message : err,
+      );
+      return {
+        audioBase64: null,
+        error: err instanceof Error ? err.message : "TTS synthesis failed.",
+      };
+    }
   },
 });
 

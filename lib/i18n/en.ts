@@ -326,6 +326,27 @@ export const en = {
   "settings.disclaimerText":
     "Raqam-AI is a financial literacy assistant, not a licensed financial advisor. Seek professional advice before making investment or loan decisions.",
 
+  // Settings — SMS alerts
+  "settings.smsTitle": "SMS Alerts",
+  "settings.smsDesc":
+    "Budget and bill updates straight to your phone by SMS. Only after you opt in — disable any time.",
+  "settings.smsEnable": "Send alerts by SMS",
+  "settings.smsEnableDesc":
+    "Get a heads-up when a budget is nearly used up or a bill is coming",
+  "settings.smsPhoneLabel": "Mobile number",
+  "settings.smsPhonePlaceholder": "e.g. 0300 1234567",
+  "settings.smsPhoneHelp": "Pakistani mobile number — alerts arrive here",
+  "settings.smsTest": "Send test message",
+  "settings.smsTestSending": "Sending…",
+  "settings.smsTestSent": "SMS sent — check your phone",
+  "settings.smsTestFailed":
+    "Message could not be sent — check the number and SMS settings",
+  "settings.smsInvalidPhone":
+    "Enter a valid Pakistani mobile number (e.g. 03001234567)",
+  "settings.savedToast": "Settings saved",
+  "settings.saveFailed": "Could not save — please try again.",
+  "settings.save": "Save",
+
   // ─── Import ───────────────────────────────────────────────────────────────────
   "import.title": "Import Bank Statement",
   "import.subtitle": "Upload a CSV file",
@@ -441,6 +462,36 @@ export const en = {
   "voice.byBrowser": "Transcribed by your browser",
   "voice.transcribeFailed":
     "Couldn't transcribe the audio. Edit below or record again.",
+
+  // ─── Voice call (hands-free conversation) ────────────────────────────────────
+  "voice.callLabel": "Voice conversation",
+  "voice.callListening": "Listening… speak now",
+  "voice.callThinking": "Thinking…",
+  "voice.callSpeaking": "Replying…",
+  "voice.callTranscribing": "Transcribing…",
+  "voice.callEnd": "End call",
+  "voice.callEnded": "Call ended",
+  "voice.callMicDenied": "Microphone permission denied — call ended",
+  "voice.callTurnSend": "Send",
+  "voice.ttsByGemini": "Gemini voice",
+  "voice.ttsByBrowser": "Browser voice",
+
+  // ─── SMS notifications ─────────────────────────────────────────────────
+  // English fallbacks for the alert templates (Urdu is the source of truth —
+  // see lib/i18n/ur.ts). Placeholders use {curly braces}.
+  "notifications.budgetApproaching":
+    'Hello!\n\nYour "{category}" budget for this month is nearly used up — like a plate of biryani with only the last two spoonfuls left.\n\nSo far {spent} rupees have been spent and {remaining} rupees remain.\n\nTake it easy for the rest of the month — Raqam Assistant',
+  "notifications.budgetReached":
+    'Hello!\n\nYour "{category}" budget for this month is fully used — the plate is clean!\n\n{spent} rupees spent (the limit was {limit} rupees).\n\nAny further spending goes over budget. Raise the limit if needed, or better to wait for next month — Raqam Assistant',
+  "notifications.billDue":
+    'Hello!\n\nReminder: your "{bill}" bill is due on {date} — only {days} days left.\n\nKeep about {amount} rupees aside so the payment goes through easily.\n\nLeave the rest to Raqam Assistant — Raqam Assistant',
+  "notifications.monthlySummary":
+    "Hello!\n\n{month} in review: {income} rupees came in, {expenses} rupees went out, and {savings} rupees were saved.\n\n{advice}\n\nRaqam Assistant",
+  "notifications.monthlyAdvicePositive": "Great saving — keep it up!",
+  "notifications.monthlyAdviceNegative":
+    "Ease up on spending next month — let's build a budget together.",
+  "notifications.test":
+    "Hello from Raqam Assistant!\n\nYour SMS alert setup is complete. When a budget runs low or a bill approaches, we'll let you know right here.",
 
   // ─── Receipt OCR ─────────────────────────────────────────────────────────────
   "receipt.title": "Receipt Transaction",

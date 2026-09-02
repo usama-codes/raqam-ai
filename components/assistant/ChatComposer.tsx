@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Mic, Receipt, Send, X } from "lucide-react";
+import { Mic, Phone, Receipt, Send, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAutoResizeTextarea } from "@/hooks/useAutoResizeTextarea";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ interface ChatComposerProps {
   onSend: () => void;
   onMic: () => void;
   onReceipt: () => void;
+  /** Starts the hands-free voice call (listening + spoken replies). */
+  onCall: () => void;
   onClearVoiceDraft: () => void;
   sending: boolean;
   voiceSupported: boolean;
@@ -28,6 +30,7 @@ export function ChatComposer({
   onSend,
   onMic,
   onReceipt,
+  onCall,
   onClearVoiceDraft,
   sending,
   voiceSupported,
@@ -124,6 +127,18 @@ export function ChatComposer({
             className={iconButton}
           >
             <Mic className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            onClick={onCall}
+            disabled={!voiceSupported || sending || voiceBusy}
+            aria-label={t("voice.callLabel")}
+            title={
+              voiceSupported ? t("voice.callLabel") : t("voice.notSupported")
+            }
+            className={iconButton}
+          >
+            <Phone className="h-[18px] w-[18px]" />
           </button>
           <button
             type="button"

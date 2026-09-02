@@ -6,6 +6,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUser } from "./auth";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
   MAX_IMPORT_ROWS,
@@ -377,6 +378,14 @@ export const confirmImport = mutation({
       importedCount,
       updatedAt: now,
     });
+
+    // SMS budget alerts: one threshold re-check per confirmed import —
+    // the daily cron safety net covers later edits, so no per-row scheduling.
+    if (args.rows.some((r) => r.selected && r.type === "expense")) {
+      ctx.scheduler.runAfter(0, internal.notifications.checkBudgetAlerts, {
+        userId: user._id,
+      });
+    }
 
     return { importedCount };
   },

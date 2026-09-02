@@ -4,12 +4,15 @@ import {
   downsampleMono,
   mixToMono,
   arrayBufferToBase64,
+  pcm16ToWav,
+  parsePcmRate,
   TARGET_SAMPLE_RATE,
 } from "@/lib/audio/wav";
 
 function ascii(view: DataView, offset: number, length: number): string {
   let s = "";
-  for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
+  for (let i = 0; i < length; i++)
+    s += String.fromCharCode(view.getUint8(offset + i));
   return s;
 }
 
@@ -98,6 +101,51 @@ describe("mixToMono", () => {
 
   it("returns an empty array for no channels", () => {
     expect(mixToMono([]).length).toBe(0);
+  });
+});
+
+describe("pcm16ToWav", () => {
+  it("writes a canonical 44-byte header around the raw PCM samples", () => {
+    const pcm = new Uint8Array([0x01, 0x80, 0xff, 0x7f]);
+    const buf = pcm16ToWav(pcm, 24_000);
+    const view = new DataView(buf);
+
+    expect(buf.byteLength).toBe(44 + 4);
+    expect(ascii(view, 0, 4)).toBe("RIFF");
+    expect(view.getUint32(4, true)).toBe(36 + 4);
+    expect(ascii(view, 8, 4)).toBe("WAVE");
+    expect(ascii(view, 12, 4)).toBe("fmt ");
+    expect(view.getUint32(16, true)).toBe(16); // fmt length
+    expect(view.getUint16(20, true)).toBe(1); // PCM
+    expect(view.getUint16(22, true)).toBe(1); // mono
+    expect(view.getUint32(24, true)).toBe(24_000); // sample rate
+    expect(view.getUint32(28, true)).toBe(24_000 * 2); // byte rate
+    expect(view.getUint16(32, true)).toBe(2); // block align
+    expect(view.getUint16(34, true)).toBe(16); // bits per sample
+    expect(ascii(view, 36, 4)).toBe("data");
+    expect(view.getUint32(40, true)).toBe(4);
+    // The PCM payload is copied verbatim — never re-encoded.
+    expect(Array.from(new Uint8Array(buf, 44))).toEqual([
+      0x01, 0x80, 0xff, 0x7f,
+    ]);
+  });
+
+  it("produces an empty data section for empty input", () => {
+    expect(pcm16ToWav(new Uint8Array(0), 24_000).byteLength).toBe(44);
+  });
+});
+
+describe("parsePcmRate", () => {
+  it("extracts the rate from a Gemini TTS mimeType", () => {
+    expect(parsePcmRate("audio/L16;codec=pcm;rate=24000")).toBe(24_000);
+    expect(parsePcmRate("audio/L16;codec=pcm;rate=16000")).toBe(16_000);
+  });
+
+  it("falls back when the mimeType has no rate or is missing", () => {
+    expect(parsePcmRate("audio/wav")).toBe(24_000);
+    expect(parsePcmRate(null)).toBe(24_000);
+    expect(parsePcmRate(undefined)).toBe(24_000);
+    expect(parsePcmRate("audio/wav", 22_050)).toBe(22_050);
   });
 });
 

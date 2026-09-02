@@ -1948,7 +1948,7 @@ Do not implement these during the hackathon.
 - PDF report export
 - Multi-currency support
 - Social or shared budgets
-- SMS or WhatsApp integration
+- Inbound SMS/WhatsApp input (outbound Twilio SMS alerts are delivered — Phase 13)
 - Mobile app (React Native)
 
 The agent must **never** sacrifice a working Tier 1 feature to add a Tier 3 feature.
@@ -1969,7 +1969,7 @@ These features have been explicitly deferred. Do not implement them. Do not crea
 | Multi-currency                     | Adds validation complexity, deferred post-Pakistan launch                  |
 | Shared budgets                     | Auth complexity, deferred                                                  |
 | React Native app                   | Separate codebase, deferred                                                |
-| SMS-based input                    | Twilio cost, out of scope                                                  |
+| Inbound SMS-based input            | Two-way messaging cost, out of scope (outbound Twilio alerts shipped)      |
 | Professional financial advice mode | Regulated, explicitly prohibited                                           |
 
 ---

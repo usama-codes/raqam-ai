@@ -1,14 +1,31 @@
 "use client";
 
+import * as React from "react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useToast } from "@/components/shared/Toast";
 import { useAuth } from "@/hooks/useAuth";
-import { SignOutButton } from "@clerk/nextjs";
+import {
+  useNotificationSettings,
+  type NotificationSettings,
+} from "@/hooks/useNotificationSettings";
+import { normalizePakistaniPhone } from "@/lib/notifications/phone";
 
-function Toggle({ on, onChange }: { on: boolean; onChange?: () => void }) {
+function Toggle({
+  on,
+  onChange,
+  disabled,
+}: {
+  on: boolean;
+  onChange?: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
-      onClick={onChange}
-      className="flex h-[26px] w-[46px] shrink-0 items-center rounded-full p-[3px] transition-colors"
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
+      className={`flex h-[26px] w-[46px] shrink-0 items-center rounded-full p-[3px] transition-colors ${
+        disabled ? "opacity-40" : ""
+      }`}
       style={{
         background: on ? "#0F5132" : "#DCD6C8",
         justifyContent: on ? "flex-end" : "flex-start",
@@ -16,6 +33,216 @@ function Toggle({ on, onChange }: { on: boolean; onChange?: () => void }) {
     >
       <span className="h-5 w-5 rounded-full bg-white transition-all" />
     </button>
+  );
+}
+
+/**
+ * SMS alerts card — the consent surface for proactive notifications.
+ * The master switch requires a saved phone number; individual alert kinds are
+ * meaningless while it is off (mirrors the server-side consent record, §8).
+ */
+function SmsCard() {
+  const { t } = useLanguage();
+  const { addToast } = useToast();
+  const { settings, saveSettings, sendTestMessage, sendingTest } =
+    useNotificationSettings();
+
+  // Draft synced from the server value whenever it changes (React's
+  // adjust-state-during-render pattern — no effects, no stale toggles).
+  const [synced, setSynced] = React.useState<{
+    source: NotificationSettings | null;
+    draft: NotificationSettings | null;
+  }>({ source: null, draft: null });
+  if (settings !== synced.source) {
+    setSynced({ source: settings, draft: settings });
+  }
+  const draft = synced.draft;
+
+  // Phone input keeps its own draft until saved (never mutates consent early).
+  const [phoneInput, setPhoneInput] = React.useState<string | null>(null);
+  const phone = phoneInput ?? settings?.smsPhone ?? "";
+
+  const update = async (patch: Partial<NotificationSettings>) => {
+    if (!draft) return;
+    const next = { ...draft, ...patch };
+    setSynced((s) => ({ ...s, draft: next }));
+    const result = await saveSettings(next);
+    if (!result.ok) {
+      // Revert to the last server-confirmed value on failure.
+      setSynced((s) => ({ ...s, draft: s.source }));
+      addToast({
+        type: "error",
+        title: t("settings.saveFailed"),
+        description: result.error,
+      });
+    }
+  };
+
+  const toggleMaster = async () => {
+    if (!draft) return;
+    if (!draft.smsEnabled && !draft.smsPhone) {
+      // Consent needs a destination first — the server would refuse anyway.
+      addToast({ type: "warning", title: t("settings.smsInvalidPhone") });
+      return;
+    }
+    await update({ smsEnabled: !draft.smsEnabled });
+  };
+
+  const savePhone = async () => {
+    if (!draft) return;
+    const normalized = phone.trim()
+      ? normalizePakistaniPhone(phone.trim())
+      : null;
+    if (phone.trim() && !normalized) {
+      addToast({ type: "error", title: t("settings.smsInvalidPhone") });
+      return;
+    }
+    const result = await saveSettings({
+      ...draft,
+      smsPhone: normalized ?? "",
+    });
+    setPhoneInput(null);
+    if (result.ok) {
+      addToast({ type: "success", title: t("settings.savedToast") });
+    } else {
+      addToast({
+        type: "error",
+        title: t("settings.saveFailed"),
+        description: result.error,
+      });
+    }
+  };
+
+  const runTest = async () => {
+    const result = await sendTestMessage();
+    if (result.ok) {
+      addToast({ type: "success", title: t("settings.smsTestSent") });
+    } else {
+      addToast({
+        type: "error",
+        title: t("settings.smsTestFailed"),
+        description: result.error ?? undefined,
+      });
+    }
+  };
+
+  const masterOn = !!draft?.smsEnabled;
+  const canTest =
+    !sendingTest && !!settings?.smsEnabled && !!settings?.smsPhone;
+
+  const alertRows: Array<{
+    label: string;
+    on: boolean;
+    key: keyof NotificationSettings;
+  }> = [
+    {
+      label: t("settings.notifBudget80"),
+      on: !!draft?.budgetApproaching,
+      key: "budgetApproaching",
+    },
+    {
+      label: t("settings.notifBudget100"),
+      on: !!draft?.budgetReached,
+      key: "budgetReached",
+    },
+    {
+      label: t("settings.notifBillReminder"),
+      on: !!draft?.billReminders,
+      key: "billReminders",
+    },
+    {
+      label: t("settings.notifUnusualSpend"),
+      on: !!draft?.unusualSpend,
+      key: "unusualSpend",
+    },
+    {
+      label: t("settings.notifMonthlySummary"),
+      on: !!draft?.monthlySummary,
+      key: "monthlySummary",
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[19px] font-bold">
+          {t("settings.notificationsTitle")}
+        </h2>
+        <p className="text-[14px] leading-[1.9] text-[#6B7A70]">
+          {t("settings.notificationsDesc")}
+        </p>
+      </div>
+
+      {/* Master consent switch */}
+      <div className="flex items-center justify-between gap-4 rounded-[12px] border border-[#E7E2D6] bg-[#FBF9F4] p-4">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[15px] font-bold">
+            {t("settings.smsEnable")}
+          </span>
+          <span className="text-[13px] text-[#6B7A70]">
+            {t("settings.smsEnableDesc")}
+          </span>
+        </div>
+        <Toggle on={masterOn} onChange={toggleMaster} />
+      </div>
+
+      {/* Phone + test message (only while consented) */}
+      {masterOn && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[14px] font-semibold">
+              {t("settings.smsPhoneLabel")}
+            </label>
+            <div className="flex gap-2">
+              <input
+                dir="ltr"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder={t("settings.smsPhonePlaceholder")}
+                className="flex-1 rounded-[10px] border border-[#DCD6C8] bg-white px-3.5 py-[11px] text-left text-[15px] outline-none focus:border-[#0F5132]"
+              />
+              <button
+                onClick={savePhone}
+                className="shrink-0 cursor-pointer rounded-[10px] bg-[#0F5132] px-4 py-[11px] text-[14px] font-semibold text-white"
+              >
+                {t("settings.save")}
+              </button>
+            </div>
+            <span className="text-[12px] text-[#8A9690]">
+              {t("settings.smsPhoneHelp")}
+            </span>
+          </div>
+          <button
+            onClick={runTest}
+            disabled={!canTest}
+            className="cursor-pointer rounded-[10px] border border-[#0F5132]/30 bg-[#F4F8F5] py-[11px] text-[14px] font-semibold text-[#0F5132] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sendingTest
+              ? t("settings.smsTestSending")
+              : t("settings.smsTest")}
+          </button>
+        </div>
+      )}
+
+      {/* Individual alert kinds */}
+      <div className="flex flex-col">
+        {alertRows.map((row, i) => (
+          <div
+            key={row.key}
+            className={`flex items-center justify-between ${i > 0 ? "border-t border-[#F1EEE4] pt-3.5" : ""} ${i < alertRows.length - 1 ? "pb-3.5" : ""}`}
+          >
+            <span className="text-[15px]">{row.label}</span>
+            <Toggle
+              on={row.on}
+              disabled={!masterOn}
+              onChange={() => update({ [row.key]: !row.on })}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -96,32 +323,8 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Notifications */}
-          <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E2D6] bg-white p-6">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-[19px] font-bold">
-                {t("settings.notificationsTitle")}
-              </h2>
-              <p className="text-[14px] leading-[1.9] text-[#6B7A70]">
-                {t("settings.notificationsDesc")}
-              </p>
-            </div>
-            {[
-              { label: t("settings.notifBudget80"), on: true },
-              { label: t("settings.notifBudget100"), on: true },
-              { label: t("settings.notifBillReminder"), on: true },
-              { label: t("settings.notifUnusualSpend"), on: false },
-              { label: t("settings.notifMonthlySummary"), on: true },
-            ].map((item, i) => (
-              <div
-                key={item.label}
-                className={`flex items-center justify-between ${i > 0 ? "border-t border-[#F1EEE4] pt-3.5" : ""}`}
-              >
-                <span className="text-[15px]">{item.label}</span>
-                <Toggle on={item.on} />
-              </div>
-            ))}
-          </div>
+          {/* Notifications (SMS alerts — consent-backed, §8) */}
+          <SmsCard />
         </div>
 
         {/* ── Right column ── */}

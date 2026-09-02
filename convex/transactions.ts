@@ -6,6 +6,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUser } from "./auth";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // ─── Arg types (mirror the validators for IDE type resolution) ──────────────────
@@ -103,7 +104,7 @@ export const create = mutation({
     }
 
     const now = Date.now();
-    return await ctx.db.insert("transactions", {
+    const transactionId = await ctx.db.insert("transactions", {
       userId: user._id,
       type: args.type,
       amount: args.amount,
@@ -118,6 +119,17 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // SMS budget alerts: re-check category thresholds right after an
+    // expense lands. The action no-ops unless the user opted in (§8 consent),
+    // and its own dedup gate prevents repeat messages.
+    if (args.type === "expense") {
+      ctx.scheduler.runAfter(0, internal.notifications.checkBudgetAlerts, {
+        userId: user._id,
+      });
+    }
+
+    return transactionId;
   },
 });
 

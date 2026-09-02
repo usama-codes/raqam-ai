@@ -1,6 +1,6 @@
 # PROGRESS.md — Raqam-AI Phase & Task Tracker
 
-> **Last updated:** 2026-08-31
+> **Last updated:** 2026-09-01
 > **Authoritative reference:** AGENTS.md §10 (Development Phases), §12 (Success Criteria), §14 (Definition of Done)
 
 ---
@@ -23,7 +23,7 @@
 | 11    | Multimodal Accessibility          | ✅ COMPLETE    | ✅ Passed  |
 | 11.1  | Transcription engine (AssemblyAI) | ✅ COMPLETE    | ✅ Passed  |
 | 12    | Bank Statement / CSV Intelligence | ✅ COMPLETE    | ✅ Passed  |
-| 13    | Proactive Financial Assistance    | ⬜ NOT STARTED | ⬜ Pending |
+| 13    | Proactive Financial Assistance    | 🟡 STARTED     | ⬜ Pending |
 | 14    | Safety, Reliability & Testing     | 🟡 STARTED     | ⬜ Pending |
 | 15    | Hackathon Polish                  | ⬜ NOT STARTED | ⬜ Pending |
 
@@ -787,6 +787,58 @@ rendered as a **second input box** stacked on the composer.
   assistant.
 - `tsc`, `eslint` (0 errors), `next build` (11 routes), `vitest` (39) all green.
 
+### Urdu voice call — hands-free conversation (2026-09-01)
+
+**Status:** ✅ COMPLETE
+**Why:** voice input already existed, but the user still had to _read_ the replies.
+The voice call adds spoken Urdu replies (TTS) and a continuous turn loop, so the
+whole conversation is hands-free. Spoken turns continue the **same** conversation
+as the chat — pendingAction confirmation cards stay visible (P5), so the AI never
+mutates anything the user hasn't seen.
+
+**Turn loop** (`hooks/useVoiceCall.ts`):
+
+```
+listening (mic open, live interim transcript)
+  → transcribing (AssemblyAI → Gemini → Web Speech chain, useVoiceInput)
+  → thinking   (sendMessage(text, "voice") — same conversation as the chat)
+  → speaking   (Gemini TTS → browser speechSynthesis fallback, useSpeech)
+  → listening … until the user hangs up
+```
+
+**TTS chain:** `convex/ai.ts: synthesizeSpeech` ("use node") → `lib/ai/tts.ts`
+(pure, fetch-injectable): Gemini TTS model chain `gemini-3.1-flash-tts-preview` →
+`gemini-2.5-flash-preview-tts` → `gemini-2.5-pro-preview-tts`, prebuilt voice
+"Kore", Markdown stripped before speaking, 3000-char cap. The API returns raw
+s16le mono PCM (rate parsed from the mimeType, default 24 kHz), wrapped in a WAV
+server-side (`pcm16ToWav`) and played via
+`new Audio("data:audio/wav;base64,…")`. On failure the action returns `null` and
+`hooks/useSpeech.ts` falls back to the browser's `speechSynthesis` (`ur-PK`) — a
+reply is **always** spoken. Env overrides: `GEMINI_TTS_MODEL`, `GEMINI_TTS_VOICE`
+(Convex deployment env, optional).
+
+**Files**
+
+| File                                     | Change                                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `lib/ai/tts.ts`                          | **new** — pure TTS module: Markdown stripping, model chain, PCM→WAV                           |
+| `lib/ai/models.ts`                       | `TTS_MODELS` chain + exported `GEMINI_BASE_URL`                                               |
+| `lib/audio/wav.ts`                       | `pcm16ToWav` (wrap raw PCM in a WAV header) + `parsePcmRate` (mimeType → sample rate)         |
+| `convex/ai.ts`                           | `synthesizeSpeech` action (auth via `getCurrentUser`; `null` on failure → browser fallback)   |
+| `hooks/useSpeech.ts`                     | **new** — Gemini WAV playback → `speechSynthesis` fallback, `stop()`                          |
+| `hooks/useVoiceInput.ts`                 | optional `onResult` callback — fires the moment a turn's transcription settles                |
+| `hooks/useAssistant.ts`                  | `sendMessage` now returns the reply text (`Promise<string                                     | null>`) so it can be spoken |
+| `hooks/useVoiceCall.ts`                  | **new** — the call loop: status machine, deferred per-turn promises, hang-up, mic-denied exit |
+| `components/assistant/VoiceRecorder.tsx` | Call mode: listening/transcribing/thinking/speaking states + hang-up and send-turn controls   |
+| `components/assistant/ChatComposer.tsx`  | Phone button starts the call                                                                  |
+| `app/(app)/assistant/page.tsx`           | Wires `useVoiceCall(assistant)` into the footer (call ↔ voice recording ↔ composer)           |
+| `lib/i18n/{ur,en}.ts`                    | `voice.call*` + `voice.ttsBy*` keys each                                                      |
+| `tests/unit/tts.test.ts`                 | **new** — 14 tests: Markdown stripping, request shape, WAV output, model-chain fallback       |
+| `tests/unit/wav.test.ts`                 | +2: `pcm16ToWav` header/passthrough, `parsePcmRate`                                           |
+| `.env.example`                           | `GEMINI_TTS_MODEL` / `GEMINI_TTS_VOICE` (optional, Convex deployment env)                     |
+
+- `tsc --noEmit`, `eslint` (0 errors), `next build` (11 routes), `vitest` all green.
+
 ---
 
 **Tests / CI (new — seeds Phase 14)**
@@ -909,30 +961,92 @@ row in the preview).
 
 ## Phase 13 — Proactive Financial Assistance
 
-**Status:** ⬜ NOT STARTED
+**Status:** 🟡 STARTED (SMS delivery channel via Twilio shipped 2026-09-02; WhatsApp channel removed same day)
 **Dependencies:** Phase 10 complete
 **Exit gate:** ⬜ Pending — Trigger each of 3 alert types, confirm they appear and can be dismissed.
 
-### Implementation requirements
+### SMS proactive alerts (2026-09-02) — ✅ delivered (WhatsApp → Twilio swap)
 
-- [ ] Budget warnings: toast + assistant message at 80% and 100% utilization
-- [ ] Recurring expense reminders: banner on login if `nextDueDate` within 3 days
-- [ ] Unusual spending alert: dashboard card if category >30% above 3-month rolling average
-- [ ] Monthly summary: "Pichle mahine ka khulaasah" button on first login of new month
-- [ ] All proactive features disableable per-category in settings
+**What shipped:** opt-in Urdu budget/bill/monthly-summary alerts delivered over the
+Twilio Messages REST API (no SDK — raw `fetch`), with consent-first settings and a
+per-alert dedup + audit log. Templates use everyday analogies (a nearly finished
+plate of biryani, the clean plate) and plain rupee figures — never percentages or
+jargon (P1, P5). The original WhatsApp Business Cloud API channel was fully removed
+at the user's request; the same alert types, consent model, and dedup log now run
+over SMS.
 
-### Tests
+**Alerts:**
 
-- [ ] Transaction at 81% → warning appears
-- [ ] Recurring expense due in 2 days → reminder banner visible
-- [ ] Category 40% above average → anomaly card visible
+| Alert           | Trigger                                                                     | Template key                    |
+| --------------- | --------------------------------------------------------------------------- | ------------------------------- |
+| Budget nearing  | Category spend ≥ 80% of its monthly limit — checked after **every** expense | `notifications.budgetApproaching` |
+| Budget reached  | Category spend ≥ 100%                                                       | `notifications.budgetReached`     |
+| Bill reminder   | Active recurring expense due within 7 days (daily cron)                     | `notifications.billDue`           |
+| Monthly summary | Previous-month recap on the 1st–3rd (daily cron)                            | `notifications.monthlySummary`    |
 
-### Success criteria
+**Delivery pipeline:**
 
-- [ ] Budget warnings at correct thresholds
-- [ ] Recurring reminders at correct intervals
-- [ ] Anomaly detection surfaces real data-driven alert
-- [ ] All alerts dismissible
+```
+Expense created (manual | conversational | import)
+  → ctx.scheduler.runAfter(0, checkBudgetAlerts)      [transactions.ts,
+    pendingActions.ts, imports.ts]
+       ↓
+convex/notificationsInternal.ts  (internal-only — never client-callable)
+  ├─ getSettings — consent gate: SMS ON + phone set + alert type enabled
+  ├─ getBudgetStatus — latest budget ≤ now + per-category spend (P2: real data)
+  ├─ listUpcomingBills / getMonthlySummary — cron paths
+  └─ wasSent / logNotification — dedup (sent-only) + audit trail
+       ↓
+convex/notifications.ts ("use node")
+  ├─ sendTwilioSms → Twilio Messages API (lib/notifications/twilio.ts)
+  └─ notificationLog — status "sent" | "failed" (failures retry next trigger)
+       ↓
+convex/crons.ts — daily 02:30 UTC (07:30 PKT): bills + budget safety net + summary
+```
+
+**Consent & privacy (§8):** every alert type defaults OFF; the user opts in,
+enters a Pakistani mobile number (normalized to E.164 `+92…`), and verifies with
+the Settings "send test message" flow. Settings are read/written through
+authenticated public functions; the cross-user cron path uses **internal** Convex
+functions only. The Twilio credentials live solely in the Convex deployment env —
+never in the client bundle or in error messages (unit-tested).
+
+**Files**
+
+| File                                              | Purpose                                                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `convex/schema.ts`                                | `notificationSettings` (per-user consent + phone + per-alert toggles) + `notificationLog`         |
+| `lib/notifications/twilio.ts`                     | **new** — pure Twilio Messages client: `sendTwilioSms` (fetch-injectable), 1600-char body cap     |
+| `lib/notifications/phone.ts`                      | **new** — shared `normalizePakistaniPhone` (client + server)                                      |
+| `lib/notifications/messages.ts`                   | Urdu message builders + dedup keys (templates live in `lib/i18n/{ur,en}.ts`)                      |
+| `convex/notifications.ts`                         | "use node" actions: budget check, daily cron run, test message                                    |
+| `convex/notificationsInternal.ts`                 | internal-only data access (settings, budget status, bills, summary, dedup)                        |
+| `convex/crons.ts`                                 | daily cron (02:30 UTC)                                                                            |
+| `convex/notificationSettings.ts`                  | public `get` / `upsert` (authenticated)                                                           |
+| `hooks/useNotificationSettings.ts`                | settings hook + `sendTestMessage`                                                                 |
+| `app/(app)/settings/page.tsx`                     | Functional SMS card: enable, phone entry, per-alert toggles, test message                          |
+| `convex/{transactions,pendingActions,imports}.ts` | Post-expense `checkBudgetAlerts` scheduling (all three insert paths)                               |
+| `lib/i18n/{ur,en}.ts`                             | 8 `notifications.*` templates + `settings.sms*` keys each                                          |
+| `.env.example`                                    | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` (Convex deployment env)          |
+| `tests/unit/notifications.test.ts`                | 38 unit tests: client, phone normalization, builders, dedup keys                                   |
+
+**Removed (WhatsApp → Twilio swap, 2026-09-02):**
+
+| Removed                          | Replaced by                              |
+| -------------------------------- | ---------------------------------------- |
+| `lib/notifications/whatsapp.ts`  | `lib/notifications/twilio.ts` + `phone.ts` |
+| `tests/unit/whatsapp.test.ts`    | `tests/unit/notifications.test.ts`       |
+| `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` env vars | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` |
+| `notificationSettings.whatsappEnabled` / `whatsappPhone` schema fields | `smsEnabled` / `smsPhone` |
+| `notificationLog.channel: "whatsapp"` | `channel: "sms"`                   |
+| `settings.whatsapp*` i18n keys   | `settings.sms*` keys                     |
+| `whatsapp.*` template keys       | `notifications.*` template keys          |
+
+**Env:** `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` must be
+set in the **Convex deployment** env (`npx convex env set …`) — credentials to be
+filled by the user. If unset, sends fail gracefully (logged "failed") — nothing
+crashes, users simply receive nothing. Long Urdu bodies are sent as concatenated
+UCS-2 segments (Twilio splits automatically above the 160-char GSM limit).
 
 ---
 
@@ -945,9 +1059,10 @@ row in the preview).
 **Harness in place (2026-08-30):** `vitest` `4.1.11` + `vitest.config.mts`,
 `npm run test` / `npm run typecheck`, and `.github/workflows/ci.yml`
 (`npm ci → typecheck → lint → test` on every push to `main` and every PR).
-Current suite: 78 unit tests across
-`tests/unit/{transcription,wav,calculations,import}.test.ts`, plus a self-skipping
-`tests/live/transcription.live.test.ts` that hits the real AssemblyAI API.
+Current suite: **134 unit tests** across
+`tests/unit/{transcription,wav,calculations,import,notifications,tts}.test.ts`, plus a
+self-skipping `tests/live/transcription.live.test.ts` that hits the real
+AssemblyAI API.
 
 ### Implementation requirements
 

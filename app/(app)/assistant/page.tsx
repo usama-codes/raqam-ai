@@ -6,6 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAssistant } from "@/hooks/useAssistant";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { VoiceErrorCode } from "@/hooks/useVoiceInput";
+import { useVoiceCall } from "@/hooks/useVoiceCall";
 import type { TranscriptProvider } from "@/lib/ai/transcription";
 import { useLanguage } from "@/components/LanguageProvider";
 import { ErrorState } from "@/components/shared/DataStates";
@@ -20,6 +21,7 @@ import { ReceiptUploadDialog } from "@/components/receipt/ReceiptUploadDialog";
 import type { ReceiptExtractedData } from "@/components/receipt/ReceiptUploadDialog";
 
 export default function AssistantPage() {
+  const assistant = useAssistant();
   const {
     conversations,
     messages,
@@ -34,9 +36,10 @@ export default function AssistantPage() {
     deleteConversation,
     confirmAction,
     rejectAction,
-  } = useAssistant();
+  } = assistant;
   const { t } = useLanguage();
   const voice = useVoiceInput();
+  const call = useVoiceCall(assistant);
 
   const [input, setInput] = React.useState("");
   const [voiceProvider, setVoiceProvider] =
@@ -48,7 +51,10 @@ export default function AssistantPage() {
 
   // ── Autoscroll to the newest message ──
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
   }, [messages.length, sending, pendingActions.length]);
 
   // ── Send ──
@@ -120,7 +126,23 @@ export default function AssistantPage() {
   };
 
   const voiceBusy = voice.isListening || voice.processing;
+  const callActive = call.active;
   const errorText = voiceErrorText(voice.error);
+  // A call ended by a mic problem keeps its explanation on screen after hang-up.
+  const callErrorText =
+    call.error === "mic-denied"
+      ? t("voice.callMicDenied")
+      : voiceErrorText(call.error);
+
+  // Map the call's conversation phase onto the recorder's display modes.
+  const callMode: "recording" | "processing" | "thinking" | "speaking" =
+    call.status === "listening"
+      ? "recording"
+      : call.status === "transcribing"
+        ? "processing"
+        : call.status === "thinking"
+          ? "thinking"
+          : "speaking";
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-row lg:h-screen">
@@ -137,7 +159,7 @@ export default function AssistantPage() {
             onNewChat={startNewConversation}
             onSwitch={switchConversation}
             onDelete={deleteConversation}
-            disabled={sending}
+            disabled={sending || callActive}
           />
         </div>
       </aside>
@@ -204,7 +226,7 @@ export default function AssistantPage() {
         </div>
 
         {/* Voice error bar */}
-        {errorText && !voiceBusy && (
+        {errorText && !voiceBusy && !callActive && (
           <div
             className="flex items-center gap-2 border-t border-border bg-[#F6E6E4] px-6 py-2.5 text-[13px] text-[#8A2E26] sm:px-8"
             role="alert"
@@ -218,9 +240,26 @@ export default function AssistantPage() {
             </button>
           </div>
         )}
+        {callErrorText && !callActive && (
+          <div
+            className="flex items-center gap-2 border-t border-border bg-[#F6E6E4] px-6 py-2.5 text-[13px] text-[#8A2E26] sm:px-8"
+            role="alert"
+          >
+            <span className="min-w-0 flex-1">{callErrorText}</span>
+          </div>
+        )}
 
-        {/* Footer: recorder OR composer — never both */}
-        {voiceBusy ? (
+        {/* Footer: call recorder OR voice recorder OR composer — never stacked */}
+        {callActive ? (
+          <VoiceRecorder
+            mode={callMode}
+            interimText={call.interimTranscript}
+            onStop={call.finishTurn}
+            call
+            onEndCall={call.endCall}
+            onSendTurn={call.finishTurn}
+          />
+        ) : voiceBusy ? (
           <VoiceRecorder
             mode={voice.isListening ? "recording" : "processing"}
             interimText={voice.interimTranscript}
@@ -232,6 +271,7 @@ export default function AssistantPage() {
             onChange={setInput}
             onSend={handleSend}
             onMic={handleMic}
+            onCall={call.startCall}
             onReceipt={() => setReceiptDialogOpen(true)}
             onClearVoiceDraft={handleClearVoiceDraft}
             sending={sending}

@@ -325,6 +325,29 @@ export const ur = {
   "settings.disclaimerText":
     "رقم-AI مالی خواندگی کا معاون ہے، لائسنس شدہ مالی مشیر نہیں۔ سرمایہ کاری یا قرض کے فیصلوں سے پہلے مستند مشورہ لیں۔",
 
+  // Settings — SMS alerts
+  "settings.smsTitle": "ایس ایم ایس انتباہات",
+  "settings.smsDesc":
+    "بجٹ اور بلوں کی خبریں براہِ راست آپ کے فون پر ایس ایم ایس کے ذریعے۔ صرف آپ کی اجازت کے بعد — ہر وقت بند کر سکتے ہیں۔",
+  "settings.smsEnable": "ایس ایم ایس پر انتباہات بھیجیں",
+  "settings.smsEnableDesc":
+    "بجٹ ختم ہونے لگے یا بل قریب آئے تو خبر ملے گی",
+  "settings.smsPhoneLabel": "موبائل نمبر",
+  "settings.smsPhonePlaceholder": "مثلاً 0300 1234567",
+  "settings.smsPhoneHelp":
+    "پاکستانی موبائل نمبر — انتباہات اسی پر آئیں گے",
+  "settings.smsTest": "آزمائشی پیغام بھیجیں",
+  "settings.smsTestSending": "بھیجا جا رہا ہے…",
+  "settings.smsTestSent":
+    "ایس ایم ایس بھیج دیا گیا — اپنا فون چیک کریں",
+  "settings.smsTestFailed":
+    "پیغام نہیں بھیجا جا سکا — نمبر اور ایس ایم ایس ترتیبات چیک کریں",
+  "settings.smsInvalidPhone":
+    "درست پاکستانی موبائل نمبر درج کریں (مثلاً 03001234567)",
+  "settings.savedToast": "ترتیبات محفوظ ہو گئیں",
+  "settings.saveFailed": "محفوظ نہیں ہو سکیں — دوبارہ کوشش کریں",
+  "settings.save": "محفوظ کریں",
+
   // ─── Import ───────────────────────────────────────────────────────────────────
   "import.title": "بینک اسٹیٹمنٹ درآمد",
   "import.subtitle": "CSV فائل اپ لوڈ کریں",
@@ -440,6 +463,39 @@ export const ur = {
   "voice.byBrowser": "براؤزر سے نقل",
   "voice.transcribeFailed":
     "آواز کو متن میں تبدیل نہیں کیا جا سکا۔ نیچے تبدیل کریں یا دوبارہ ریکارڈ کریں۔",
+
+  // ─── Voice call (hands-free conversation) ────────────────────────────────────
+  "voice.callLabel": "آواز پر گفتگو",
+  "voice.callListening": "سن رہا ہوں… بولیں",
+  "voice.callThinking": "سوچ رہا ہوں…",
+  "voice.callSpeaking": "جواب دے رہا ہوں…",
+  "voice.callTranscribing": "آواز کو متن میں بدلا جا رہا ہے…",
+  "voice.callEnd": "کال ختم کریں",
+  "voice.callEnded": "کال ختم",
+  "voice.callMicDenied": "مائیکروفون کی اجازت نہیں ملی — کال ختم کر دی گئی",
+  "voice.callTurnSend": "بھیجیں",
+  "voice.ttsByGemini": "Gemini آواز",
+  "voice.ttsByBrowser": "براؤزر آواز",
+
+  // ─── SMS notifications ─────────────────────────────────────────────────
+  // Layman-friendly Urdu alert templates. Placeholders use {curly braces} and are
+  // filled by lib/notifications/messages.ts — never shown raw. Deliberately no
+  // percentages or jargon: the numbers arrive as plain rupee amounts and
+  // day counts wrapped in everyday analogies (P1 — Urdu-first, P5 — clarity).
+  "notifications.budgetApproaching":
+    "السلام علیکم!\n\nآپ کا «{category}» کا بجٹ اس مہینے تقریباً مکمل ہو چکا ہے — بالکل ویسے جیسے بریانی کی پلیٹ میں صرف آخری دو چمچ باقی ہوں۔\n\nاب تک {spent} روپے خرچ ہو چکے ہیں اور {remaining} روپے باقی ہیں۔\n\nباقی دن ذرا خیال سے گزاریں — رقم معاون",
+  "notifications.budgetReached":
+    "السلام علیکم!\n\nآپ کا «{category}» کا بجٹ اس مہینے مکمل ہو گیا ہے — پلیٹ صاف ہو چکی ہے!\n\n{spent} روپے خرچ ہو چکے ہیں (حد {limit} روپے تھی)۔\n\nاب ہر اضافی خرچ بجٹ سے باہر ہو گا۔ ضرورت ہو تو بجٹ تھوڑا بڑھا لیں، ورنہ اگلے مہینے کا انتظار بہتر ہے — رقم معاون",
+  "notifications.billDue":
+    "السلام علیکم!\n\nیاد دہانی: آپ کا «{bill}» کا بل {date} کو آ رہا ہے — اب صرف {days} دن باقی ہیں۔\n\nتقریباً {amount} روپے کا بندوبست رکھ چھوڑیں تاکہ وقت پر ادائیگی آسانی سے ہو جائے۔\n\nباقی کام رقم معاون کے ذمے — رقم معاون",
+  "notifications.monthlySummary":
+    "السلام علیکم!\n\n{month} کا خلاصہ: {income} روپے آئے، {expenses} روپے گئے، اور {savings} روپے بچ گئے۔\n\n{advice}\n\nرقم معاون",
+  "notifications.monthlyAdvicePositive":
+    "ماشاءاللہ بچت اچھی رہی — اسی طرح جاری رکھیں!",
+  "notifications.monthlyAdviceNegative":
+    "اگلے مہینے ذرا خرج سنبھالیں — مل کر بجٹ بنائیں گے۔",
+  "notifications.test":
+    "السلام علیکم! رقم معاون سے سلام۔\n\nآپ کے فون پر ایس ایم ایس انتباہات کی ترتیب مکمل ہو گئی ہے۔ جب بجٹ ختم ہونے لگے گا یا کوئی بل قریب آئے گا، ہم آپ کو اسی طرح خبر کر دیں گے۔",
 
   // ─── Receipt OCR ─────────────────────────────────────────────────────────────
   "receipt.title": "رسید سے لین دین",

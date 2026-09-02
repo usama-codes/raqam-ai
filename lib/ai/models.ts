@@ -39,6 +39,20 @@ export const TRANSCRIBE_MODELS: readonly string[] = [
 export const VISION_MODELS: readonly string[] = TEXT_MODELS;
 
 /**
+ * Text-to-speech models — tried in order until one succeeds.
+ * gemini-3.1-flash-tts-preview is purpose-built for speech output via
+ * generateContent with responseModalities: ["AUDIO"]; it returns raw
+ * 16-bit PCM that lib/ai/tts.ts wraps in a WAV container. The 2.5-era
+ * preview TTS models stay in the chain as legacy fallbacks — the chain
+ * auto-advances when a model 404s.
+ */
+export const TTS_MODELS: readonly string[] = [
+  "gemini-3.1-flash-tts-preview", // Purpose-built TTS
+  "gemini-2.5-flash-preview-tts", // Legacy preview fallback
+  "gemini-2.5-pro-preview-tts", // Legacy pro fallback
+] as const;
+
+/**
  * The primary model used by the orchestrator for agent reasoning.
  * Import this constant instead of hard-coding model names.
  */
@@ -48,6 +62,7 @@ export const PRIMARY_MODEL = TEXT_MODELS[0];
 
 const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models";
+export { GEMINI_BASE_URL };
 
 export interface GeminiRequest {
   contents: Array<{

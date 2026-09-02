@@ -47,7 +47,7 @@ export interface UseAssistantReturn {
   loading: boolean;
   sending: boolean;
   error: Error | null;
-  sendMessage: (content: string, mode?: InputMode) => Promise<void>;
+  sendMessage: (content: string, mode?: InputMode) => Promise<string | null>;
   startNewConversation: () => Promise<void>;
   switchConversation: (id: string) => void;
   deleteConversation: (id: string) => Promise<void>;
@@ -210,8 +210,8 @@ export function useAssistant(): UseAssistantReturn {
 
   // Send message
   const sendMessage = React.useCallback(
-    async (content: string, mode?: InputMode): Promise<void> => {
-      if (!content.trim()) return;
+    async (content: string, mode?: InputMode): Promise<string | null> => {
+      if (!content.trim()) return null;
 
       // Show the user's message immediately (optimistic update)
       const optimisticMsg: ChatMessage = {
@@ -244,6 +244,10 @@ export function useAssistant(): UseAssistantReturn {
         // Soft failures come back as a friendly in-chat message with the real
         // error attached — surface it to the console for debugging.
         if (result?.error) console.warn("[assistant]", result.error);
+
+        // The reply text — callers that speak it (voice-call mode) need it;
+        // text-mode callers simply ignore the return value.
+        return (result?.content as string | undefined) ?? null;
       } catch (err) {
         setError(
           err instanceof Error ? err : new Error("Failed to send message"),
@@ -252,6 +256,7 @@ export function useAssistant(): UseAssistantReturn {
         setOptimisticMessages((prev) =>
           prev.filter((m) => m.id !== optimisticMsg.id),
         );
+        return null;
       } finally {
         setSending(false);
       }

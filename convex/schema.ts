@@ -227,4 +227,48 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_conversationId", ["conversationId"]),
+
+  // ─── Notification Settings (SMS alerts) ────────────────────────────────
+  // Privacy: everything defaults to OFF — alerts are strictly opt-in (§8).
+  notificationSettings: defineTable({
+    userId: v.id("users"),
+    // Master consent. No SMS is ever sent while false.
+    smsEnabled: v.boolean(),
+    // E.164 normalized Pakistani mobile number, e.g. "+923001234567".
+    smsPhone: v.optional(v.string()),
+    budgetApproaching: v.boolean(), // ≥ 80% of a category limit
+    budgetReached: v.boolean(), // ≥ 100% of a category limit
+    billReminders: v.boolean(), // recurring bill due within 7 days
+    monthlySummary: v.boolean(), // previous month's recap on the 1st
+    unusualSpend: v.boolean(), // reserved — Phase 13 anomaly alerts
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  // ─── Notification Log (SMS alerts) ────────────────────────────────────
+  // One row per alert attempt. `dedupKey` guarantees a given alert fires at
+  // most once per scope (e.g. per category per month) — no spam (§9 Phase 13).
+  notificationLog: defineTable({
+    userId: v.id("users"),
+    channel: v.literal("sms"),
+    kind: v.union(
+      v.literal("budget_approaching"),
+      v.literal("budget_reached"),
+      v.literal("bill_due"),
+      v.literal("monthly_summary"),
+      v.literal("test"),
+    ),
+    // e.g. "budget_approaching:<categoryId>:<month-start-ms>"
+    dedupKey: v.string(),
+    body: v.string(),
+    status: v.union(
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("skipped"),
+    ),
+    errorMessage: v.optional(v.string()),
+    sentAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_dedupKey", ["userId", "dedupKey"]),
 });

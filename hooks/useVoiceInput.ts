@@ -177,7 +177,20 @@ async function blobToWavBase64(
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
+/** Optional behavior extensions (used by the hands-free voice-call mode). */
+export interface UseVoiceInputOptions {
+  /**
+   * Fired exactly once per listening turn, the moment transcription settles
+   * (success, failure or timeout). Lets a caller react without polling
+   * `waitForResult` — the voice-call loop builds its turn promise on this.
+   */
+  onResult?: (outcome: VoiceOutcome) => void;
+}
+
+export function useVoiceInput(
+  lang: string = "ur-PK",
+  options?: UseVoiceInputOptions,
+): UseVoiceInputReturn {
   const [isListening, setIsListening] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
   const [transcript, setTranscript] = React.useState("");
@@ -211,6 +224,13 @@ export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
     transcribeAudioRef.current = transcribeAudio;
   }, [transcribeAudio]);
 
+  // onResult callback kept in a ref (same pattern as transcribeAudioRef) so
+  // `settle` stays stable and callers can pass fresh closures.
+  const onResultRef = React.useRef(options?.onResult);
+  React.useEffect(() => {
+    onResultRef.current = options?.onResult;
+  }, [options?.onResult]);
+
   const speechSupported =
     typeof window !== "undefined" &&
     (!!window.SpeechRecognition || !!window.webkitSpeechRecognition);
@@ -230,6 +250,8 @@ export function useVoiceInput(lang: string = "ur-PK"): UseVoiceInputReturn {
     setError(outcome.error);
     setProcessing(false);
     setIsListening(false);
+    // Event-driven hand-off for callers that don't poll waitForResult.
+    onResultRef.current?.(outcome);
   }, []);
 
   const stopStream = React.useCallback(() => {

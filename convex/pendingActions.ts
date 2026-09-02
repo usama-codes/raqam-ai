@@ -12,6 +12,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUser } from "./auth";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // ─── Queries ────────────────────────────────────────────────────────────────────
@@ -265,6 +266,14 @@ async function insertTransaction(
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
+
+  // SMS budget alerts: re-check thresholds after a confirmed AI-created
+  // expense (same gate as manual entry — consent + dedup live in the action).
+  if (params.type === "expense") {
+    ctx.scheduler.runAfter(0, internal.notifications.checkBudgetAlerts, {
+      userId: user._id,
+    });
+  }
 
   return `${params.type === "income" ? "آمدنی" : "خرچ"} Rs. ${params.amount.toLocaleString()} — ${params.description} شامل ہو گیا۔`;
 }
