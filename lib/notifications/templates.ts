@@ -53,7 +53,7 @@ function unusualSpendMessage(a: UnusualAlert, lang: Lang): NotificationCandidate
   const text =
     lang === "ur"
       ? `📈 "${name}" میں اس مہینے معمول سے ${a.deviationPercent}% زیادہ خرچ ہوا: ${current} (اوسط ${avg})۔`
-      : `📈 Unusual spending in "${name}": ${a.deviationPercent}% above your 3-month average — ${current} vs. ${avg} avg.`;
+      : `📈 Unusual spending in "${name}": ${a.deviationPercent}% above your 3-month average of ${avg} (now ${current}).`;
 
   const subject =
     lang === "ur" ? `غیر معمولی خرچ: ${name}` : `Unusual spending: ${name}`;
