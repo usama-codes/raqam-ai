@@ -37,6 +37,58 @@ npx convex env set CLERK_ISSUER                 <clerk-issuer-url> --prod
 
 Note the prod deployment URL — it becomes `NEXT_PUBLIC_CONVEX_URL` on Vercel.
 
+### 1a. Alert notifications — Gmail SMTP + AWS End User Messaging
+
+Post-hackathon addition (`convex/notifications.ts` + `convex/crons.ts`, hourly
+sweep). Both are optional independently — a channel with no credentials set
+just fails silently per-send and retries next sweep; the other channel still
+goes out. See `.env.example` for the full comments.
+
+```
+npx convex env set GMAIL_USER            <gmail-address> --prod
+npx convex env set GMAIL_APP_PASSWORD    <16-char-app-password> --prod
+npx convex env set AWS_REGION            us-east-1 --prod
+npx convex env set AWS_ACCESS_KEY_ID     <iam-access-key-id> --prod
+npx convex env set AWS_SECRET_ACCESS_KEY <iam-secret-key> --prod
+npx convex env set AWS_SMS_SENDER_ID     RaqamAI --prod
+```
+
+**Gmail** — turn on 2-Step Verification on the sending Google account, then
+generate an App Password at https://myaccount.google.com/apppasswords
+(app "Mail", device "Other" — name it e.g. "Raqam AI Convex"). Use that
+16-character password, not the account password. Gmail SMTP caps around
+~500 sends/day on a personal account; fine for this scale.
+
+**AWS End User Messaging (SMS)** —
+
+1. Create/use an AWS account, then in IAM create a user (or role) for Convex
+   with a scoped policy granting only `sms-voice:SendTextMessage`:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       { "Effect": "Allow", "Action": "sms-voice:SendTextMessage", "Resource": "*" }
+     ]
+   }
+   ```
+
+   Generate an access key for that user (`AWS_ACCESS_KEY_ID` /
+   `AWS_SECRET_ACCESS_KEY` above). Tighten `Resource` later to the specific
+   Sender ID ARN (`arn:aws:sms-voice:<region>:<account-id>:sender-id/RaqamAI/PK`)
+   once it exists.
+2. In the **End User Messaging → SMS and voice** console, register an
+   alphanumeric **Sender ID** (e.g. `RaqamAI`) for **Pakistan**. This is
+   self-service and doesn't require the destination-country pre-approval that
+   e.g. India/Turkey/Vietnam need — matches `AWS_SMS_SENDER_ID` above.
+3. Pick a region where End User Messaging SMS is available (`us-east-1` is
+   the safe default) — this is `AWS_REGION`, and is independent of where
+   your users live; it only has to match the region the Sender ID was
+   registered in.
+4. `users.phone` must be E.164 (`+92...`) for `sendAlertSms` to work —
+   confirm however phone numbers are captured (Clerk) normalizes to that
+   format.
+
 ## 2. Clerk — production instance
 
 - Create a **Production** instance in the Clerk dashboard (separate keys from dev).

@@ -1187,6 +1187,39 @@ New tests: `tests/integration/{audit-log,seed}.test.ts`; cases added to
 
 ---
 
+## Post-Hackathon — Alert Notifications (Email + SMS)
+
+Not a numbered phase — added 2026-09-03, after the numbered spec (0–15) was
+already code-complete. Spec: `docs/superpowers/specs/2026-09-03-alert-notifications.md`.
+AGENTS.md Tier 4 / §17 annotated in place (was previously listed as deferred;
+see the footnote/row added there for why this is now in scope).
+
+**What shipped:**
+
+- [x] `notificationsSent` table (dedup, mirrors `dismissedAlerts`)
+- [x] `convex/proactive.ts` refactored: shared `computeAlerts()` behind both
+      the existing `getAlerts` query and a new `getAlertsForUser` internalQuery
+- [x] `convex/crons.ts` — first cron in this codebase, hourly
+- [x] `convex/notifications.ts` (`"use node"`) — sweep + dispatch
+- [x] `lib/notifications/{templates,email,sms}.ts` — bilingual (ur/en)
+      message bodies; nodemailer (Gmail SMTP); AWS End User Messaging SMS
+- [x] `tests/unit/notifications-templates.test.ts`
+- [x] Full gate green: typecheck / lint / test (206 passing) / build / codegen
+
+### Manual — left for the user
+
+- [ ] Generate a Gmail App Password, set `GMAIL_USER` / `GMAIL_APP_PASSWORD`
+      (`docs/DEPLOY.md` §1a)
+- [ ] Create the AWS IAM user + `sms-voice:SendTextMessage` policy, register
+      the Pakistan Sender ID, set `AWS_REGION` / `AWS_ACCESS_KEY_ID` /
+      `AWS_SECRET_ACCESS_KEY` / `AWS_SMS_SENDER_ID` (`docs/DEPLOY.md` §1a)
+- [ ] Trigger `internal.notifications.runAlertSweep` manually once (Convex
+      dashboard → Functions, or wait for the hourly cron) and confirm a real
+      email/SMS arrives once credentials are set
+- [ ] Confirm `users.phone` is E.164 (Clerk should already normalize it)
+
+---
+
 ## §12 Global Success Criteria
 
 | Criterion                   | Measurement                                                                           | Status | Phase |

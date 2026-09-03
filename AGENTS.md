@@ -1948,8 +1948,15 @@ Do not implement these during the hackathon.
 - PDF report export
 - Multi-currency support
 - Social or shared budgets
-- SMS or WhatsApp integration
+- SMS or WhatsApp integration [^post-hackathon-sms]
 - Mobile app (React Native)
+
+[^post-hackathon-sms]: Outbound SMS/email **alert delivery** (not WhatsApp, not
+    SMS-based input — that stays deferred, see §17) was added 2026-09-03 after
+    the numbered phase spec ended at Phase 15, once the hackathon-timeline/cost
+    constraints that motivated this deferral (Twilio account cost) no longer
+    applied. User-directed; see AUDIT.md §12 and
+    `docs/superpowers/specs/2026-09-03-alert-notifications.md`.
 
 The agent must **never** sacrifice a working Tier 1 feature to add a Tier 3 feature.
 
@@ -1969,8 +1976,16 @@ These features have been explicitly deferred. Do not implement them. Do not crea
 | Multi-currency                     | Adds validation complexity, deferred post-Pakistan launch                  |
 | Shared budgets                     | Auth complexity, deferred                                                  |
 | React Native app                   | Separate codebase, deferred                                                |
-| SMS-based input                    | Twilio cost, out of scope                                                  |
+| SMS-based input                    | Twilio cost, out of scope — **still deferred**; distinct from outbound SMS alerts below |
 | Professional financial advice mode | Regulated, explicitly prohibited                                           |
+
+**Post-hackathon addition (2026-09-03, not a numbered phase):** outbound alert
+*delivery* by email (Gmail SMTP / nodemailer) and SMS (AWS End User Messaging)
+— `convex/notifications.ts` + `convex/crons.ts`, hourly sweep of the existing
+Phase 13 alerts. This is delivery only, not a new input channel: the
+"SMS-based input" and "Push notifications" rows above remain deferred as
+written. See AUDIT.md §12 and
+`docs/superpowers/specs/2026-09-03-alert-notifications.md`.
 
 ---
 
