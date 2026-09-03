@@ -259,6 +259,19 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_conversationId", ["conversationId"]),
 
+  // ─── Sent Alert Notifications (post-hackathon — email/SMS dispatch) ───────
+  // One row per (userId, alertKey, periodKey) that has already been pushed out
+  // as email and/or SMS, so the hourly cron never re-sends the same alert.
+  // Mirrors the `dismissedAlerts` key shape — a new period re-arms sending,
+  // same as it re-arms visibility on the dashboard.
+  notificationsSent: defineTable({
+    userId: v.id("users"),
+    alertKey: v.string(),
+    periodKey: v.string(),
+    channels: v.array(v.union(v.literal("email"), v.literal("sms"))),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   // ─── Audit Log (AGENTS.md §6) ─────────────────────────────────────────────
   // Append-only trail. Phase 15 wires the AI-initiated write paths only:
   // the confirmAction executors (source "ai") and import confirmation

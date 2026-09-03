@@ -1,6 +1,7 @@
 import {
   mutation,
   query,
+  internalQuery,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
@@ -173,5 +174,18 @@ export const updateNotificationPrefs = mutation({
     }
 
     await ctx.db.patch(user._id, { notificationPrefs: args.prefs });
+  },
+});
+
+/**
+ * All users with at least one deliverable contact channel — read by the
+ * hourly alert-notification sweep (`convex/notifications.ts`). Not exposed
+ * to the client; only a cron can reach an `internalQuery`.
+ */
+export const listUsersForNotificationSweep = internalQuery({
+  args: {},
+  handler: async (ctx: QueryCtx) => {
+    const users = await ctx.db.query("users").collect();
+    return users.filter((u) => u.email || u.phone);
   },
 });

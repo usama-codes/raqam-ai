@@ -11,6 +11,8 @@
 import {
   mutation,
   query,
+  internalQuery,
+  internalMutation,
   type QueryCtx,
   type MutationCtx,
 } from "./_generated/server";
@@ -57,13 +59,10 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 // ─── getAlerts ─────────────────────────────────────────────────────────────────
 
 /**
- * All currently-active proactive alerts for the dashboard, minus anything the
- * user has dismissed for the relevant period, and respecting notificationPrefs.
+ * Shared alert derivation — same logic for the dashboard query (auth-scoped,
+ * one user) and the notification sweep (cron-triggered, iterates all users).
  */
-export const getAlerts = query({
-  args: {},
-  handler: async (ctx: QueryCtx) => {
-    const user = await requireUser(ctx);
+async function computeAlerts(ctx: QueryCtx, user: Doc<"users">) {
     const prefs = user.notificationPrefs ?? DEFAULT_PREFS;
 
     const now = Date.now();
@@ -281,6 +280,73 @@ export const getAlerts = query({
     }
 
     return { budgetAlerts, unusualAlerts, billReminders };
+}
+
+export type ProactiveAlerts = Awaited<ReturnType<typeof computeAlerts>>;
+
+/**
+ * All currently-active proactive alerts for the dashboard, minus anything the
+ * user has dismissed for the relevant period, and respecting notificationPrefs.
+ */
+export const getAlerts = query({
+  args: {},
+  handler: async (ctx: QueryCtx) => {
+    const user = await requireUser(ctx);
+    return computeAlerts(ctx, user);
+  },
+});
+
+/**
+ * Same derivation as `getAlerts`, but for a given userId with no auth context
+ * — used by the hourly notification sweep (`convex/notifications.ts`), which
+ * runs as a cron with no signed-in identity to resolve via `requireUser`.
+ */
+export const getAlertsForUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args: { userId: Id<"users"> }) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return { budgetAlerts: [], unusualAlerts: [], billReminders: [] };
+    return computeAlerts(ctx, user);
+  },
+});
+
+// ─── Sent-notification tracking (post-hackathon — email/SMS dispatch) ─────────
+
+/**
+ * (alertKey, periodKey) pairs already pushed out as email/SMS for this user,
+ * as `"alertKey:periodKey"` strings — the sweep skips anything already sent
+ * for its current period, the same way `dismissAlert` hides it on the
+ * dashboard. A new period (e.g. next month's budget cycle) re-arms sending.
+ */
+export const getSentNotificationKeys = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args: { userId: Id<"users"> }) => {
+    const rows = await ctx.db
+      .query("notificationsSent")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+    return rows.map((r) => `${r.alertKey}:${r.periodKey}`);
+  },
+});
+
+/** Record that an alert was successfully sent over the given channels. */
+export const recordNotificationSent = internalMutation({
+  args: {
+    userId: v.id("users"),
+    alertKey: v.string(),
+    periodKey: v.string(),
+    channels: v.array(v.union(v.literal("email"), v.literal("sms"))),
+  },
+  handler: async (
+    ctx: MutationCtx,
+    args: {
+      userId: Id<"users">;
+      alertKey: string;
+      periodKey: string;
+      channels: Array<"email" | "sms">;
+    },
+  ) => {
+    await ctx.db.insert("notificationsSent", { ...args, createdAt: Date.now() });
   },
 });
 
