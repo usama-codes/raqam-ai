@@ -1,287 +1,155 @@
 # Raqam AI
 
-An intelligent personal finance platform for Urdu-speaking users, powered by AI agents and real-time financial analysis.
+Raqam AI is an Urdu-first personal finance assistant for users in Pakistan. It
+combines a bilingual, RTL-friendly dashboard with AI-powered financial
+education, analysis, recommendations, and confirmed actions.
 
-## 📋 Overview
+## What it does
 
-Raqam AI is a Next.js-based financial companion that helps users in Pakistan manage their money through:
-- **AI-driven insights** using Gemini and OpenAI models
-- **Urdu-first interface** with Nastaliq font rendering
-- **Intelligent transaction management** with CSV import and categorization
-- **Budget tracking and projections** with natural language AI assistance
-- **Real-time data persistence** through Convex backend
+- **Bilingual finance workspace** — Urdu and English UI with RTL support and
+  Nastaliq typography.
+- **Dashboard insights** — income and expense summaries, monthly trends,
+  category breakdowns, projections, unusual-spend detection, and proactive
+  alerts.
+- **Transactions** — add, edit, delete, search, and filter income and expenses.
+- **Budgets and recurring bills** — track category budgets and upcoming
+  recurring expenses.
+- **Goals** — create savings goals and monitor progress.
+- **AI assistant** — ask financial questions, analyze your data, receive
+  recommendations, or request actions. Financial actions require confirmation
+  before they are executed.
+- **Voice experience** — Urdu/English voice input, spoken replies, and the
+  hands-free “Call Raqam” conversation flow.
+- **Data import** — CSV import with column detection, normalization, validation,
+  duplicate detection, preview, and atomic confirmation.
+- **Receipt capture** — optional receipt upload and OCR support.
+- **Notifications** — optional budget, bill, and anomaly alerts by email or SMS.
+- **Auditability** — financial actions are recorded in an audit log.
 
-## 🎯 Key Features
+## Tech stack
 
-- **Multi-language support** (Urdu & English) with RTL rendering
-- **Financial data import** from CSV with intelligent column detection
-- **AI assistant** for financial education, analysis, recommendations, and actions
-- **Budget management** with category-based tracking
-- **Duplicate detection** across imported and manually-entered transactions
-- **Secure authentication** via Clerk
-- **Audit logging** for all financial actions
+- [Next.js](https://nextjs.org) 16 with the App Router
+- React 19 and TypeScript
+- [Convex](https://www.convex.dev) for the database, realtime queries, and
+  server actions
+- [Clerk](https://clerk.com) for authentication
+- OpenAI Agents SDK with Google Gemini as the model provider
+- Tailwind CSS and shadcn/ui
+- Vitest for unit and integration tests
 
-## 🛠️ Tech Stack
+## Requirements
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | Next.js 16 (App Router) + React 19 | UI framework |
-| **Language** | TypeScript | Type-safe development |
-| **Styling** | Tailwind CSS + shadcn/ui | Responsive UI components |
-| **Backend** | Convex | Database, realtime sync, server actions |
-| **Auth** | Clerk | User authentication & identity |
-| **AI** | OpenAI SDK + Google Gemini API | LLM models for agents |
-| **Data Import** | PapaParse | CSV parsing & normalization |
-| **Markdown** | react-markdown + remark-gfm | Rich text rendering for AI responses |
+- Node.js 20+
+- npm
+- A Convex deployment
+- A Clerk application
+- Google Gemini API access
 
-### Dependency Versions
+Optional integrations provide OCR, transcription, Azure neural speech,
+notification email, and notification SMS.
 
-See `package.json` for complete dependency list. All dependencies are pinned to exact versions for reproducibility.
-
-## 📦 Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/usama-codes/raqam-ai.git
-   cd raqam-ai
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Required variables:
-   - `NEXT_PUBLIC_CONVEX_URL` — Convex deployment URL
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk public key
-   - `CLERK_SECRET_KEY` — Clerk secret key (server-only)
-   - `GOOGLE_GENERATIVE_AI_API_KEY` — Gemini API key
-   - `OPENAI_API_KEY` — OpenAI API key (optional, fallback)
-
-4. **Start development server**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000)
-
-## 🚀 Development
-
-### Build & Test
+## Local development
 
 ```bash
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run typecheck    # TypeScript type checking
-npm run test         # Run unit tests
-npm run test:watch   # Watch mode
+git clone https://github.com/usama-codes/raqam-ai.git
+cd raqam-ai
+npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-### Project Structure
+Open [http://localhost:3000](http://localhost:3000).
 
-```
-raqam-ai/
-├── app/                      # Next.js App Router
-│   ├── (app)/               # Authenticated routes
-│   ├── onboarding/          # User onboarding wizard
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Landing page
-├── components/              # React components
-│   ├── assistant/           # AI chat interface
-│   ├── import/              # CSV import flow
-│   ├── landing/             # Landing page components
-│   ├── ui/                  # shadcn/ui base components
-│   └── OnboardingGuard.tsx  # Auth wrapper
-├── convex/                  # Convex backend
-│   ├── schema.ts           # Database schema
-│   ├── ai.ts               # AI orchestration action
-│   ├── assistant.ts        # Chat history & persistence
-│   ├── auditLog.ts         # Audit trail logging
-│   ├── imports.ts          # CSV import handling
-│   ├── users.ts            # User management
-│   └── seed.ts             # Demo data seeding
-├── hooks/                   # React hooks
-│   ├── useAssistant.ts     # Chat orchestration
-│   └── useImports.ts       # Import workflow
-├── lib/                     # Utilities & domain logic
-│   ├── ai/                 # AI agent definitions & orchestration
-│   ├── finance/            # Financial calculations & utilities
-│   │   ├── import/         # CSV parsing & normalization
-│   │   └── ...             # Balance, category logic
-│   └── i18n/               # Internationalization (Urdu & English)
-├── tests/                   # Unit & integration tests
-├── docs/                    # Documentation & planning
-│   └── DEPLOY.md           # Deployment checklist
-├── AGENTS.md               # Complete product specification
-├── AUDIT.md                # Architecture & phase audit
-├── PROGRESS.md             # Development progress tracking
-└── package.json
+Set the client and authentication values in `.env.local`:
+
+```env
+NEXT_PUBLIC_CONVEX_URL=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/signup
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/dashboard
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/dashboard
 ```
 
-## 🤖 AI Architecture
+The AI, transcription, speech, and notification secrets are server-side
+configuration. Set them in the Convex deployment rather than exposing them to
+the browser. See `.env.example` for the complete list and `docs/DEPLOY.md` for
+production setup.
 
-### Intent Router
+## Application routes
 
-The AI assistant routes user requests into four intents:
+| Route | Purpose |
+| --- | --- |
+| `/` | Public landing page |
+| `/login` | Clerk sign-in |
+| `/signup` | Clerk sign-up |
+| `/onboarding` | New-user setup |
+| `/dashboard` | Financial overview and proactive insights |
+| `/transactions` | Transaction management |
+| `/budgets` | Budgets and recurring bills |
+| `/goals` | Savings goals |
+| `/import` | CSV transaction import |
+| `/assistant` | AI chat and voice assistant |
+| `/settings` | Preferences and notification settings |
 
-- **EDUCATE** — Explain financial concepts in Urdu (inflation, savings rate, debt management)
-- **ANALYZE** — Break down current financial status with key metrics
-- **RECOMMEND** — Suggest budget adjustments and savings strategies
-- **ACT** — Execute financial actions (create budget, log transaction) with user confirmation gate
+## Useful commands
 
-### Data Flow
-
-```
-User Input (Urdu or English)
-        ↓
-Intent Detection & Financial Context Builder
-        ↓
-Agent Selection (schema, tools, system prompt)
-        ↓
-OpenAI/Gemini LLM Call
-        ↓
-Structured Output Parsing
-        ↓
-Confirmation Gate (for ACT intent)
-        ↓
-Convex Action Execution
-        ↓
-Audit Log + Response to User
-```
-
-See `AGENTS.md` (§2–5) for full specification.
-
-## 💾 Data Import
-
-### CSV Import Workflow
-
-1. **Upload** — Validate file (type, size ≤5 MB, rows ≤500)
-2. **Parse & Normalize** — Client-side CSV parsing with PapaParse
-3. **Column Detection** — Auto-detect "Date", "Amount", "Description", "Category"
-4. **Preview** — Editable table with duplicate detection and per-row validation
-5. **Confirm** — Atomic Convex mutation: insert all selected rows or none
-6. **History** — Track import status and view previous imports
-
-### Supported Columns
-
-- **Date** — Parsed as local-midnight Unix timestamp (client-side)
-- **Amount** — Auto-detects debit/credit; handles negative and D/C tokens
-- **Description** — Free-text; used for duplicate detection and categorization
-- **Category** — User-selected during import; rule-based suggestions available
-
-See `PROGRESS.md` (Import Phase) for implementation details.
-
-## 🌍 Localization
-
-Raqam AI ships with full Urdu (اردو) and English support:
-
-- **UI strings** — Stored in `lib/i18n/{ur,en}.ts`
-- **Date/number formatting** — Locale-aware utilities
-- **Font rendering** — Nastaliq font for Urdu reading surface
-- **RTL layout** — Tailwind logical properties (`start`, `end`, `ps`, `pe`)
-
-Switching between Urdu and English via a language selector updates all UI text and layout direction in real-time.
-
-## 🔐 Authentication & Security
-
-- **Clerk integration** — Sign-up, sign-in, MFA, session management
-- **Protected routes** — `OnboardingGuard` wrapper ensures onboarding completion
-- **Audit logging** — All financial actions logged with timestamp, user ID, and action type
-- **Server-only keys** — `CLERK_SECRET_KEY` never exposed to client
-- **No localStorage for financial records** — All data persisted to Convex (source of truth)
-
-## 📊 Database Schema (Convex)
-
-- **users** — Profile, auth metadata, onboarding status
-- **transactions** — Income & expenses with categories, amounts, dates
-- **budgets** — Category budgets with limits and tracking
-- **imports** — Import history and metadata
-- **importedTransactions** — Imported row data linked to source import
-- **conversations** — Chat history with timestamps and intents
-- **pendingActions** — Confirmation queue for ACT intent
-- **auditLog** — Immutable action trail for compliance
-
-See `convex/schema.ts` for detailed schema definitions.
-
-## 🚢 Deployment
-
-For production deployment to Vercel + Convex:
-
-1. **Read** `docs/DEPLOY.md` — Complete checklist
-2. **Set environment variables** on both Vercel and Convex
-3. **Deploy Convex** — `npx convex deploy`
-4. **Deploy to Vercel** — Connect GitHub repo, env vars auto-deployed
-5. **Run smoke tests** — Verify auth, chat, and import flows
-6. **Seed demo data** (optional) — `npx convex run seed:demo ...`
-
-## 📝 Development Phases
-
-Raqam AI is built in 15 phases:
-
-| Phase | Focus | Status |
-|-------|-------|--------|
-| 0 | Architecture Audit | ✅ Complete |
-| 1–3 | UI, Auth, Chat | ✅ Complete |
-| 4–6 | Financial Domain, CSV Import | ✅ Complete |
-| 7–9 | Advanced AI, Category Logic | ✅ Complete |
-| 10–12 | Refinements & Polish | ✅ Complete |
-| 13–14 | Performance, Accessibility | ✅ Complete |
-| 15 | Hackathon Polish & Deploy | ✅ Complete |
-
-See `PROGRESS.md` and `AUDIT.md` for detailed phase breakdowns and decisions.
-
-## 🧪 Testing
-
-- **Unit tests** — `tests/unit/*.test.ts` (CSV parsing, calculations, categorization)
-- **Integration tests** — `tests/integration/*.test.ts` (auth, confirmation gate, audit log)
-- **Test framework** — Vitest
-
-Run tests:
 ```bash
-npm run test           # Single run
-npm run test:watch    # Watch mode
+npm run dev        # Start the development server
+npm run build      # Create a production build
+npm run start      # Start the production server
+npm run lint       # Run ESLint
+npm run typecheck  # Generate Next types and run TypeScript checks
+npm test           # Run unit and integration tests
+npm run test:watch # Run Vitest in watch mode
 ```
 
-## 🐛 Known Limitations & Future Work
+Live integration tests require external credentials and are kept under
+`tests/live/`; the regular `npm test` command runs the local test suite.
 
-- Speech-to-text via Web Speech API (Urdu accuracy may vary; Whisper fallback planned)
-- Image/OCR via Google Cloud Vision (optional for receipt scanning)
-- No subscription/premium tiers (single-user demo mode)
-- No mobile app (responsive web only)
+## Project structure
 
-## 📚 Documentation
+```text
+app/          Next.js routes and page layouts
+components/   UI, dashboard, assistant, import, receipt, and form components
+convex/       Schema, queries, mutations, actions, cron jobs, and seed helpers
+hooks/        Client hooks for auth, finance data, assistant, and voice
+lib/          AI orchestration, finance logic, localization, audio, and alerts
+tests/        Unit, integration, and credential-backed live tests
+docs/         Deployment notes and implementation specifications
+```
 
-- **`AGENTS.md`** — Product spec, agent definitions, architecture layers, tech choices
-- **`AUDIT.md`** — Repository audit, missing features per phase, tech checklist
-- **`PROGRESS.md`** — Phase-by-phase implementation notes, decisions, file changes
-- **`DEPLOY.md`** — Deployment steps and post-deploy verification
-- **`docs/superpowers/`** — Detailed implementation plans and specs
+## Deployment
 
-## 📄 License
+Raqam AI uses Vercel for the Next.js application and Convex for backend
+functions and data:
 
-This project is private. See LICENSE file if present.
+1. Create production Clerk and Convex deployments.
+2. Deploy backend functions with `npx convex deploy`.
+3. Configure Convex server secrets, including the Gemini key and any optional
+   integration keys.
+4. Configure Vercel with the public Convex URL and Clerk variables.
+5. Deploy the application with `vercel --prod` or through the connected Git
+   repository.
+6. Run the smoke-test checklist in [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-## 👤 Author
+## Security notes
 
-**Usama Codes**
-- GitHub: [@usama-codes](https://github.com/usama-codes)
-- Repository: [usama-codes/raqam-ai](https://github.com/usama-codes/raqam-ai)
+- Keep Clerk secret, AI provider, speech, OCR, SMTP, and AWS credentials
+  server-side.
+- AI actions that change financial data pass through a confirmation gate.
+- User data is scoped through Convex authentication checks.
+- Financial mutations are recorded in the audit log.
 
-## 🙏 Acknowledgments
+## Documentation
 
-Built with:
-- [Next.js](https://nextjs.org) — React framework
-- [Convex](https://www.convex.dev) — Backend & database
-- [Clerk](https://clerk.com) — Authentication
-- [shadcn/ui](https://ui.shadcn.com) — Component library
-- [Tailwind CSS](https://tailwindcss.com) — Styling
-- [OpenAI](https://openai.com) & [Google Gemini](https://deepmind.google/technologies/gemini/) — AI models
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — production deployment and smoke tests
+- [`AGENTS.md`](AGENTS.md) — product and architecture specification
+- [`AUDIT.md`](AUDIT.md) — repository audit and implementation checklist
+- [`PROGRESS.md`](PROGRESS.md) — development history and phase notes
+- [`.env.example`](.env.example) — environment variable reference
 
----
+## Author
 
-**Questions or contributions?** Open an issue or reach out on GitHub.
+**Usama Codes** · [GitHub](https://github.com/usama-codes)
